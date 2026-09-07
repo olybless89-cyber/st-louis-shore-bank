@@ -1,0 +1,1950 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard — St Louis Shore Bank</title>
+  <link rel="icon" type="image/svg+xml" href="storage/app/public/photos/favicon.svg">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --navy:#0f2356;--navy2:#1a3068;--blue:#2563eb;--blue-light:#3b82f6;
+  --bg:#f4f6fb;--sidebar-w:230px;--white:#fff;
+  --text:#1e293b;--muted:#64748b;--border:#e2e8f0;
+}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex}
+
+/* ── SIDEBAR ── */
+.sidebar{width:var(--sidebar-w);background:var(--white);border-right:1px solid var(--border);display:flex;flex-direction:column;position:fixed;top:0;left:0;height:100vh;z-index:200;overflow-y:auto;transition:transform .25s}
+.sidebar-logo{padding:22px 20px 18px;text-align:center;border-bottom:1px solid var(--border)}
+.sidebar-logo-text{font-size:16px;font-weight:800;color:var(--navy);letter-spacing:.5px;line-height:1.1}
+.sidebar-user{padding:16px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px}
+.avatar{width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,var(--blue),#7c3aed);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:15px;color:#fff;flex-shrink:0}
+.avatar-sm{width:32px;height:32px;font-size:12px}
+.user-name{font-size:13px;font-weight:700;color:var(--navy)}
+.user-id{font-size:11px;color:var(--muted)}
+.kyc-badge{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:700;color:#ef4444;margin-top:4px;cursor:pointer;background:#fef2f2;padding:3px 8px;border-radius:20px;border:none;width:fit-content}
+.kyc-badge.verified{color:#16a34a;background:#f0fdf4}
+.sidebar-nav{flex:1;padding:12px 0}
+.nav-section{padding:10px 18px 4px;font-size:10px;font-weight:700;letter-spacing:1.5px;color:#94a3b8;text-transform:uppercase}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 18px;cursor:pointer;color:var(--muted);font-size:13px;font-weight:500;border-radius:0;transition:.15s;text-decoration:none;border-left:3px solid transparent}
+.nav-item:hover{background:#f1f5f9;color:var(--navy)}
+.nav-item.active{background:#eff6ff;color:var(--blue);border-left-color:var(--blue);font-weight:600}
+.nav-item svg{flex-shrink:0;opacity:.6;width:16px;height:16px}
+.nav-item.active svg{opacity:1}
+.sidebar-bottom{padding:14px 18px;border-top:1px solid var(--border);display:flex;gap:8px}
+.btn-sm-outline{flex:1;padding:8px 0;border:1.5px solid var(--border);border-radius:8px;font-size:12px;font-weight:600;color:var(--muted);background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px;text-decoration:none;transition:.15s}
+.btn-sm-outline:hover{border-color:var(--blue);color:var(--blue)}
+.btn-sm-logout{flex:1;padding:8px 0;border:1.5px solid #fee2e2;border-radius:8px;font-size:12px;font-weight:600;color:#ef4444;background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px;transition:.15s}
+.btn-sm-logout:hover{background:#fef2f2}
+.secure-badge{padding:10px 18px;font-size:11px;color:#94a3b8;display:flex;align-items:center;justify-content:space-between}
+@media(max-width:900px){.sidebar{transform:translateX(-100%)}.sidebar.open{transform:translateX(0)}.main{margin-left:0!important}}
+
+/* ── MAIN ── */
+.main{flex:1;margin-left:var(--sidebar-w);display:flex;flex-direction:column;min-height:100vh}
+.topbar{background:var(--white);border-bottom:1px solid var(--border);padding:0 28px;height:60px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50}
+.topbar-left{display:flex;align-items:center;gap:14px}
+.hamburger{display:none;background:transparent;border:1px solid var(--border);border-radius:8px;width:36px;height:36px;cursor:pointer;align-items:center;justify-content:center}
+@media(max-width:900px){.hamburger{display:flex}}
+.date-display{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted)}
+.topbar-right{display:flex;align-items:center;gap:12px}
+.balance-pill{background:var(--blue);color:#fff;padding:8px 16px;border-radius:24px;font-size:13px;font-weight:700;display:flex;align-items:center;gap:6px}
+.notif-btn{width:36px;height:36px;border-radius:50%;border:1.5px solid var(--border);background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--muted);transition:.15s;position:relative}
+.notif-btn:hover{border-color:var(--blue);color:var(--blue)}
+.notif-badge{position:absolute;top:-3px;right:-3px;background:#ef4444;color:#fff;font-size:9px;font-weight:700;min-width:16px;height:16px;border-radius:8px;display:flex;align-items:center;justify-content:center;padding:0 4px;border:2px solid var(--white)}
+
+/* ── PAGE ── */
+.page-content{flex:1;padding:24px 28px;overflow-y:auto}
+@media(max-width:600px){.page-content{padding:16px}}
+.section{display:none}.section.active{display:block}
+
+/* ── Stats row ── */
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:22px}
+@media(max-width:1100px){.stats-row{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:600px){.stats-row{grid-template-columns:1fr 1fr}}
+.stat-mini{background:var(--white);border:1.5px solid var(--border);border-radius:12px;padding:16px 18px;display:flex;align-items:center;justify-content:space-between;transition:.2s}
+.stat-mini:hover{border-color:var(--blue);box-shadow:0 2px 12px rgba(37,99,235,.08)}
+.stat-mini-icon{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.icon-blue{background:#eff6ff}.icon-green{background:#f0fdf4}.icon-red{background:#fef2f2}.icon-purple{background:#f5f3ff}
+.stat-mini-label{font-size:11px;font-weight:600;color:var(--muted);margin-bottom:3px;text-transform:uppercase;letter-spacing:.5px}
+.stat-mini-value{font-size:18px;font-weight:800;color:var(--navy)}
+
+/* ── Two-col layout ── */
+.two-col{display:grid;grid-template-columns:1fr 340px;gap:22px}
+@media(max-width:1100px){.two-col{grid-template-columns:1fr}}
+
+/* ── Balance card ── */
+.balance-card{background:linear-gradient(135deg,#0f2356 0%,#1a3a8f 60%,#2563eb 100%);border-radius:18px;padding:26px 28px;color:#fff;position:relative;overflow:hidden;margin-bottom:22px}
+.balance-card::before{content:'';position:absolute;top:-30px;right:-30px;width:180px;height:180px;background:rgba(255,255,255,.05);border-radius:50%}
+.balance-card::after{content:'';position:absolute;bottom:-50px;right:60px;width:120px;height:120px;background:rgba(255,255,255,.04);border-radius:50%}
+.bc-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
+.bc-greeting{font-size:14px;font-weight:500;opacity:.8}
+.bc-name{font-size:18px;font-weight:800;margin-top:2px}
+.bc-time{text-align:right}
+.bc-clock{font-size:22px;font-weight:700;font-variant-numeric:tabular-nums}
+.bc-date{font-size:12px;opacity:.7;margin-top:2px}
+.bc-label{font-size:12px;font-weight:600;opacity:.7;letter-spacing:.5px;text-transform:uppercase;margin-bottom:6px}
+.bc-amount{font-size:38px;font-weight:800;letter-spacing:-1px;line-height:1}
+.bc-bottom{display:flex;align-items:center;justify-content:space-between;margin-top:22px;padding-top:18px;border-top:1px solid rgba(255,255,255,.15)}
+.bc-acct{display:flex;align-items:center;gap:10px}
+.bc-acct-icon{width:30px;height:30px;background:rgba(255,255,255,.15);border-radius:8px;display:flex;align-items:center;justify-content:center}
+.bc-acct-num{font-size:16px;font-weight:700;letter-spacing:1px;font-family:monospace}
+.bc-acct-label{font-size:11px;opacity:.6}
+.bc-actions{display:flex;gap:10px}
+.bc-btn{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);color:#fff;padding:8px 16px;border-radius:24px;font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:5px;transition:.15s;text-decoration:none;backdrop-filter:blur(4px)}
+.bc-btn:hover{background:rgba(255,255,255,.25)}
+
+/* ── Right stats panel ── */
+.right-panel .panel{background:var(--white);border:1.5px solid var(--border);border-radius:14px;padding:20px;margin-bottom:18px}
+.panel-title{font-size:14px;font-weight:700;color:var(--navy);margin-bottom:16px}
+.stat-row-item{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid #f8fafc}
+.stat-row-item:last-child{border-bottom:none}
+.stat-row-icon{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:16px}
+.stat-row-label{font-size:12px;color:var(--muted)}
+.stat-row-value{font-size:15px;font-weight:700;color:var(--navy);margin-top:1px}
+.quick-transfer .form-group{margin-bottom:12px}
+.quick-transfer label{font-size:11px;font-weight:700;color:var(--muted);display:block;margin-bottom:5px;text-transform:uppercase;letter-spacing:.4px}
+.quick-transfer input,.quick-transfer select{width:100%;background:#f8fafc;border:1.5px solid var(--border);border-radius:8px;padding:10px 12px;font-size:13px;color:var(--text);outline:none;transition:.15s;font-family:inherit}
+.quick-transfer input:focus,.quick-transfer select:focus{border-color:var(--blue);background:var(--white)}
+
+/* ── What would you like ── */
+.actions-header{margin-bottom:16px}
+.actions-header h3{font-size:17px;font-weight:700;color:var(--navy)}
+.actions-header p{font-size:13px;color:var(--muted);margin-top:3px}
+.actions-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:24px}
+@media(max-width:900px){.actions-grid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:480px){.actions-grid{grid-template-columns:repeat(2,1fr)}}
+.action-card{border-radius:14px;padding:20px 16px;text-align:center;cursor:pointer;transition:.2s;border:1.5px solid transparent;text-decoration:none}
+.action-card:hover{transform:translateY(-3px);box-shadow:0 6px 20px rgba(0,0,0,.08)}
+.ac-blue{background:#eff6ff;border-color:#bfdbfe}.ac-blue:hover{border-color:var(--blue)}
+.ac-green{background:#f0fdf4;border-color:#bbf7d0}.ac-green:hover{border-color:#16a34a}
+.ac-purple{background:#f5f3ff;border-color:#ddd6fe}.ac-purple:hover{border-color:#7c3aed}
+.ac-orange{background:#fffbeb;border-color:#fcd34d}.ac-orange:hover{border-color:#d97706}
+.action-icon{font-size:28px;margin-bottom:10px}
+.action-label{font-size:12px;font-weight:700;color:var(--navy)}
+.action-sub{font-size:11px;color:var(--muted);margin-top:3px}
+
+/* ── Transactions table ── */
+.panel{background:var(--white);border:1.5px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:22px}
+.panel-header{padding:16px 20px;border-bottom:1px solid #f1f5f9;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px}
+.panel-header h3{font-size:14px;font-weight:700;color:var(--navy)}
+.tbl{width:100%;border-collapse:collapse;min-width:480px}
+.tbl th{padding:10px 16px;font-size:11px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:#94a3b8;border-bottom:1px solid #f1f5f9;text-align:left;white-space:nowrap}
+.tbl td{padding:12px 16px;font-size:13px;color:var(--muted);border-bottom:1px solid #f8fafc;white-space:nowrap}
+.tbl tr:last-child td{border-bottom:none}
+.overflow-x{overflow-x:auto}
+.badge{display:inline-flex;align-items:center;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700}
+.badge-credit{background:#dcfce7;color:#166534}
+.badge-hold{background:#fef3c7;color:#92400e}
+.badge-release,.badge-transfer{background:#dbeafe;color:#1e40af}
+.badge-completed{background:#dcfce7;color:#166534}
+.badge-active{background:#fef3c7;color:#92400e}
+.badge-pending{background:#fef3c7;color:#92400e}
+.badge-approved{background:#dcfce7;color:#166534}
+.badge-rejected{background:#fee2e2;color:#991b1b}
+
+/* ── Modals ── */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:500;display:none;align-items:center;justify-content:center;padding:16px}
+.modal-overlay.open{display:flex}
+.modal{background:var(--white);border-radius:18px;width:100%;max-width:500px;max-height:92vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.15)}
+.modal-header{padding:22px 24px 0;display:flex;align-items:center;justify-content:space-between}
+.modal-title{font-size:17px;font-weight:700;color:var(--navy)}
+.modal-close{background:transparent;border:none;font-size:22px;cursor:pointer;color:#94a3b8;line-height:1}.modal-close:hover{color:#ef4444}
+.modal-body{padding:18px 24px 8px}
+.modal-footer{padding:8px 24px 22px;display:flex;gap:10px;justify-content:flex-end}
+.form-group{margin-bottom:14px}
+.form-label{display:block;font-size:11px;font-weight:700;color:var(--muted);margin-bottom:5px;text-transform:uppercase;letter-spacing:.4px}
+.form-input,.form-select,.form-textarea{width:100%;background:#f8fafc;border:1.5px solid var(--border);border-radius:8px;padding:11px 14px;font-size:14px;color:var(--text);outline:none;transition:.15s;font-family:inherit}
+.form-input:focus,.form-select:focus,.form-textarea:focus{border-color:var(--blue);background:var(--white)}
+.form-textarea{resize:vertical;min-height:80px}
+.btn{padding:10px 22px;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;border:none;transition:.15s;display:inline-flex;align-items:center;gap:6px}
+.btn-primary{background:var(--blue);color:#fff}.btn-primary:hover{background:#1d4ed8}
+.btn-cancel{background:#f1f5f9;color:var(--muted)}.btn-cancel:hover{background:#e2e8f0}
+.btn-sm{padding:7px 14px;font-size:12px}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.alert{padding:11px 14px;border-radius:8px;font-size:13px;margin-bottom:14px;display:none}
+.alert-err{background:#fef2f2;color:#dc2626;border:1px solid #fecaca}
+.alert-ok{background:#f0fdf4;color:#16a34a;border:1px solid #bbf7d0}
+.alert-info{background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe}
+.info-note{background:#fffbeb;border:1px solid #fcd34d;border-radius:8px;padding:10px 12px;font-size:12px;color:#92400e;margin-bottom:14px}
+
+
+/* ── Deposit method cards ── */
+.dep-method{background:var(--white);border:2px solid var(--border);border-radius:12px;padding:18px 16px;display:flex;align-items:center;gap:12px;cursor:pointer;transition:.2s;font-size:14px;font-weight:600;color:var(--navy);position:relative}
+.dep-method:hover{border-color:var(--blue);background:#eff6ff}
+.dep-method.selected{border-color:var(--blue);background:#eff6ff}
+.dep-method-icon{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+.dep-method-radio{width:18px;height:18px;border-radius:50%;border:2px solid var(--border);margin-left:auto;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:.15s}
+.dep-method.selected .dep-method-radio{border-color:var(--blue);background:var(--blue)}
+.dep-method.selected .dep-method-radio::after{content:'';width:7px;height:7px;background:#fff;border-radius:50%;display:block}
+.dep-chip{background:var(--white);border:1.5px solid var(--border);border-radius:24px;padding:8px 18px;font-size:13px;font-weight:600;color:var(--navy);cursor:pointer;transition:.15s;font-family:inherit}
+.dep-chip:hover{border-color:var(--blue);background:#eff6ff;color:var(--blue)}
+.dep-chip.active{background:var(--blue);border-color:var(--blue);color:#fff}
+@media(max-width:600px){#dep-methods{grid-template-columns:1fr}#dep-methods .dep-method{flex-direction:row}}
+
+/* ── Loader ── */
+.loader-overlay{position:fixed;inset:0;background:rgba(244,246,251,.92);z-index:999;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:14px}
+.spinner{width:42px;height:42px;border:4px solid #dbeafe;border-top:4px solid var(--blue);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.empty{text-align:center;padding:32px;color:#94a3b8;font-size:13px}
+
+/* ── Nav badge ── */
+.nav-badge{margin-left:auto;background:var(--blue);color:#fff;font-size:10px;font-weight:700;min-width:18px;height:18px;border-radius:9px;display:flex;align-items:center;justify-content:center;padding:0 5px}
+
+/* ── Notification bell ── */
+.notif-wrap{position:relative}
+.toast-stack{position:fixed;bottom:20px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:10px;max-width:340px}
+.toast{background:#fff;border:1px solid #e2e8f0;border-left:4px solid #2563eb;border-radius:10px;box-shadow:0 8px 24px rgba(15,35,86,.18);padding:14px 16px;display:flex;gap:10px;align-items:flex-start;cursor:pointer;animation:toastIn .3s ease}
+.toast:hover{box-shadow:0 10px 30px rgba(15,35,86,.24)}
+.toast .toast-icon{font-size:20px;line-height:1}
+.toast .toast-body{flex:1;min-width:0}
+.toast .toast-title{font-weight:700;font-size:13px;color:#0f2356;margin-bottom:2px}
+.toast .toast-msg{font-size:12px;color:#64748b;line-height:1.4;word-wrap:break-word}
+.toast .toast-close{font-size:16px;color:#94a3b8;background:none;border:none;cursor:pointer;padding:0 0 0 6px;line-height:1}
+@keyframes toastIn{from{opacity:0;transform:translateX(40px)}to{opacity:1;transform:translateX(0)}}
+.notif-dropdown{position:absolute;top:46px;right:0;width:340px;max-height:420px;overflow-y:auto;background:var(--white);border:1.5px solid var(--border);border-radius:14px;box-shadow:0 16px 48px rgba(15,35,86,.16);z-index:300;display:none}
+.notif-dropdown.open{display:block}
+.notif-head{padding:14px 16px 10px;border-bottom:1px solid #f1f5f9;display:flex;align-items:center;justify-content:space-between}
+.notif-head strong{font-size:13px;color:var(--navy)}
+.notif-item{padding:12px 16px;border-bottom:1px solid #f8fafc;cursor:pointer;transition:.12s;display:block;text-decoration:none;color:inherit}
+.notif-item:hover{background:#eff6ff}
+.notif-item.unread{background:#f5f9ff}
+.notif-item.unread .notif-dot{display:inline-block}
+.notif-dot{display:none;width:8px;height:8px;border-radius:50%;background:var(--blue);margin-right:8px;vertical-align:middle}
+.notif-subj{font-size:13px;font-weight:600;color:var(--navy);margin-bottom:2px}
+.notif-prev{font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.notif-time{font-size:11px;color:#94a3b8;margin-top:3px}
+.notif-empty{padding:28px 16px;text-align:center;color:#94a3b8;font-size:13px}
+.notif-foot{padding:10px 16px;border-top:1px solid #f1f5f9;text-align:center}
+.notif-foot a{font-size:12px;font-weight:600;color:var(--blue);text-decoration:none}
+
+/* ── Webmail ── */
+.mail-layout{display:grid;grid-template-columns:380px 1fr;gap:18px;height:calc(100vh - 160px);min-height:480px}
+@media(max-width:900px){.mail-layout{grid-template-columns:1fr;height:auto}}
+.mail-list{background:var(--white);border:1.5px solid var(--border);border-radius:14px;overflow-y:auto;display:flex;flex-direction:column}
+.mail-list-head{padding:14px 16px 10px;border-bottom:1px solid #f1f5f9;display:flex;align-items:center;justify-content:space-between;gap:8px;position:sticky;top:0;background:var(--white);z-index:2}
+.mail-list-head h3{font-size:14px;font-weight:700;color:var(--navy)}
+.mail-filter{display:flex;gap:4px}
+.mail-tab{font-size:11px;font-weight:600;color:var(--muted);background:#f1f5f9;border:none;border-radius:7px;padding:5px 10px;cursor:pointer;transition:.12s}
+.mail-tab.active{background:var(--blue);color:#fff}
+.mail-item{padding:13px 16px;border-bottom:1px solid #f8fafc;cursor:pointer;transition:.12s;border-left:3px solid transparent}
+.mail-item:hover{background:#f8fafc}
+.mail-item.selected{background:#eff6ff;border-left-color:var(--blue)}
+.mail-item.unread .mail-from{font-weight:800;color:var(--navy)}
+.mail-item.unread .mail-unread-dot{display:inline-block}
+.mail-unread-dot{display:none;width:8px;height:8px;border-radius:50%;background:var(--blue);margin-right:7px;vertical-align:middle}
+.mail-from{font-size:13px;font-weight:600;color:var(--text);margin-bottom:2px;display:flex;align-items:center;justify-content:space-between;gap:8px}
+.mail-from .mail-cat{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;background:#eff6ff;color:#2563eb;padding:2px 7px;border-radius:10px}
+.mail-subj{font-size:13px;color:var(--navy);font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:3px}
+.mail-prev{font-size:12px;color:#94a3b8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mail-date{font-size:11px;color:#94a3b8;flex-shrink:0}
+.mail-pane{background:var(--white);border:1.5px solid var(--border);border-radius:14px;display:flex;flex-direction:column;overflow:hidden}
+.mail-empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#94a3b8;gap:10px;padding:32px;text-align:center}
+.mail-empty .mail-empty-icon{font-size:42px;opacity:.5}
+.mail-read-head{padding:20px 24px 16px;border-bottom:1px solid #f1f5f9}
+.mail-read-subj{font-size:18px;font-weight:800;color:var(--navy);margin-bottom:10px}
+.mail-read-meta{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--muted)}
+.mail-read-meta .avatar{width:34px;height:34px;font-size:13px}
+.mail-read-meta strong{color:var(--navy);font-weight:700}
+.mail-read-body{padding:20px 24px;overflow-y:auto;flex:1;font-size:14px;line-height:1.7;color:var(--text);white-space:pre-wrap;word-break:break-word}
+.mail-read-actions{padding:14px 24px;border-top:1px solid #f1f5f9;display:flex;gap:10px;flex-wrap:wrap}
+.mail-tag-in,.mail-tag-out{font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;text-transform:uppercase;letter-spacing:.4px}
+.mail-tag-in{background:#dcfce7;color:#166534}
+.mail-tag-out{background:#dbeafe;color:#1e40af}
+.mail-count{font-size:10px;font-weight:700;background:#f1f5f9;color:var(--muted);padding:1px 7px;border-radius:10px;margin-left:6px}
+.mail-thread{padding:16px 24px;overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:14px;background:#f8fafc}
+.mail-msg{max-width:82%;display:flex;flex-direction:column;gap:3px}
+.mail-msg.out{align-self:flex-end;align-items:flex-end}
+.mail-msg.in{align-self:flex-start;align-items:flex-start}
+.mail-msg .mail-bubble{padding:11px 15px;border-radius:14px;font-size:13.5px;line-height:1.65;white-space:pre-wrap;word-break:break-word}
+.mail-msg.out .mail-bubble{background:var(--blue);color:#fff;border-bottom-right-radius:4px}
+.mail-msg.in .mail-bubble{background:#fff;color:var(--text);border:1.5px solid var(--border);border-bottom-left-radius:4px}
+.mail-msg .mail-msg-meta{font-size:11px;color:#94a3b8}
+.mob-backdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:150}
+@media(max-width:900px){.mob-backdrop.show{display:block}}
+footer{background:var(--white);border-top:1px solid var(--border);padding:14px 28px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;font-size:12px;color:var(--muted)}
+  </style>
+</head>
+<body>
+
+<div class="loader-overlay" id="loader">
+  <div class="spinner"></div>
+  <span style="font-size:14px;color:var(--blue);font-weight:600">Loading your dashboard...</span>
+</div>
+
+<div class="mob-backdrop" id="mob-backdrop" onclick="closeSidebar()"></div>
+
+<!-- ── SIDEBAR ── -->
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-logo">
+    <div style="display:flex;align-items:center;justify-content:center;gap:8px">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 48" width="130" height="30">
+        <path d="M8 10 L8 38 L16 38 L16 22 L22 34 L28 22 L28 38 L36 38 L36 10 L28 10 L22 24 L16 10 Z" fill="#0f2356"/>
+        <path d="M6 42 Q22 35 38 42" stroke="#2563eb" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+        <text x="46" y="29" font-family="Inter,sans-serif" font-size="17" font-weight="700" fill="#0f2356">St Louis Shore Bank</text>
+        <text x="47" y="42" font-family="Inter,sans-serif" font-size="8" font-weight="500" fill="#2563eb" letter-spacing="2.5">BANK</text>
+      </svg>
+    </div>
+  </div>
+
+  <div class="sidebar-user">
+    <div class="avatar" id="sb-avatar">?</div>
+    <div>
+      <div class="user-name" id="sb-name">Loading...</div>
+      <div class="user-id">ID: <span id="sb-acct-short">—</span></div>
+      <button class="kyc-badge" id="kyc-badge" onclick="showSection('tickets')">
+        <span id="kyc-icon">⚠</span> <span id="kyc-text">Verify KYC</span>
+      </button>
+    </div>
+  </div>
+
+  <nav class="sidebar-nav">
+    <div class="nav-section">Main Menu</div>
+    <a class="nav-item active" href="#" onclick="showSection('dashboard',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+      Dashboard
+    </a>
+    <a class="nav-item" href="#" onclick="showSection('transactions',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+      Transactions
+    </a>
+    <a class="nav-item" href="#" onclick="showSection('cards',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+      Cards
+    </a>
+
+    <div class="nav-section">Transfers</div>
+    <a class="nav-item" href="#" onclick="openTransferModal('local');closeSidebar()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      Local Transfer
+    </a>
+    <a class="nav-item" href="#" onclick="openTransferModal('international');closeSidebar()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+      International Wire
+    </a>
+    <a class="nav-item" href="#" onclick="showSection('deposit',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Deposit
+    </a>
+
+    <div class="nav-section">Services</div>
+    <a class="nav-item" href="#" onclick="openModal('modal-loan');closeSidebar()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+      Loan Request
+    </a>
+    <a class="nav-item" href="#" onclick="showSection('tickets',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      Support
+    </a>
+    <a class="nav-item" href="#" onclick="showSection('webmail',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 5L2 7"/></svg>
+      Webmail
+      <span class="nav-badge" id="nav-mail-badge" style="display:none">0</span>
+    </a>
+
+    <div class="nav-section">Settings</div>
+    <a class="nav-item" href="#" onclick="showSection('security',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+      Security
+    </a>
+  </nav>
+
+  <div class="sidebar-bottom">
+    <a class="btn-sm-outline" href="#" onclick="openModal('modal-profile');return false">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      Profile
+    </a>
+    <button class="btn-sm-logout" onclick="doLogout()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+      Logout
+    </button>
+  </div>
+  <div class="secure-badge">
+    <span>🔒 Secure Banking</span>
+    <span>v2.0</span>
+  </div>
+</aside>
+
+<!-- ── MAIN ── -->
+<div class="main">
+  <!-- Topbar -->
+  <header class="topbar">
+    <div class="topbar-left">
+      <button class="hamburger" onclick="toggleSidebar()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
+      <div class="date-display">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        <span id="topbar-date">Loading...</span>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <div class="balance-pill">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+        <span id="topbar-bal">$0.00</span>
+      </div>
+      <div class="notif-wrap">
+        <button class="notif-btn" id="notif-btn" onclick="toggleNotif(event)" title="Notifications">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+          <span class="notif-badge" id="notif-badge" style="display:none">0</span>
+        </button>
+        <div class="notif-dropdown" id="notif-dropdown">
+          <div class="notif-head"><strong>Notifications</strong><span id="notif-count" style="font-size:12px;color:var(--muted)"></span></div>
+          <div id="notif-list"><div class="notif-empty">No notifications</div></div>
+          <div class="notif-foot"><a href="#" onclick="showSection('webmail',null);closeNotif();return false">Open Webmail →</a></div>
+        </div>
+      </div>
+      <div class="avatar avatar-sm" id="topbar-avatar">?</div>
+    </div>
+  </header>
+
+  <!-- Content -->
+  <div class="page-content">
+
+    <!-- ═══ DASHBOARD ═══ -->
+    <div class="section active" id="section-dashboard">
+
+      <!-- Stats mini row -->
+      <div class="stats-row">
+        <div class="stat-mini">
+          <div>
+            <div class="stat-mini-label">Current Balance</div>
+            <div class="stat-mini-value" id="st-balance">$0.00</div>
+          </div>
+          <div class="stat-mini-icon icon-blue">💳</div>
+        </div>
+        <div class="stat-mini">
+          <div>
+            <div class="stat-mini-label">Monthly Income</div>
+            <div class="stat-mini-value" id="st-income">$0</div>
+          </div>
+          <div class="stat-mini-icon icon-green">📈</div>
+        </div>
+        <div class="stat-mini">
+          <div>
+            <div class="stat-mini-label">Monthly Outgoing</div>
+            <div class="stat-mini-value" id="st-outgoing">$0</div>
+          </div>
+          <div class="stat-mini-icon icon-red">📉</div>
+        </div>
+        <div class="stat-mini">
+          <div>
+            <div class="stat-mini-label">Transaction Limit</div>
+            <div class="stat-mini-value" id="st-limit">$500,000</div>
+          </div>
+          <div class="stat-mini-icon icon-purple">⚡</div>
+        </div>
+      </div>
+
+      <div class="two-col">
+        <!-- Left column -->
+        <div>
+          <!-- Big balance card -->
+          <div class="balance-card">
+            <div class="bc-top">
+              <div>
+                <div class="bc-greeting" id="bc-greeting">Good Morning</div>
+                <div class="bc-name" id="bc-first-name">User</div>
+              </div>
+              <div class="bc-time">
+                <div class="bc-clock" id="bc-clock">00:00:00</div>
+                <div class="bc-date" id="bc-date">—</div>
+              </div>
+            </div>
+            <div class="bc-label">Available Balance</div>
+            <div class="bc-amount" id="bc-balance">$0.00 USD</div>
+            <div class="bc-bottom">
+              <div class="bc-acct">
+                <div class="bc-acct-icon">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                </div>
+                <div>
+                  <div style="display:flex;align-items:center;gap:8px">
+                    <span style="font-size:11px;opacity:.6">Account Number</span>
+                    <span id="bc-status-badge" style="background:rgba(239,68,68,.2);color:#fca5a5;font-size:10px;font-weight:700;padding:2px 8px;border-radius:12px">Inactive</span>
+                  </div>
+                  <div class="bc-acct-num" id="bc-acct-num" style="font-size:13px;letter-spacing:0;word-break:break-all">——————</div>
+                </div>
+              </div>
+              <div class="bc-actions">
+                <a class="bc-btn" href="#" onclick="showSection('transactions',null);return false">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                  Transactions
+                </a>
+                <a class="bc-btn" href="#" onclick="showSection('deposit',null);return false">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/></svg>
+                  Top up
+                </a>
+              </div>
+            </div>
+          </div>
+
+          <!-- What would you like to do -->
+          <div class="actions-header">
+            <h3>What would you like to do today?</h3>
+            <p>Choose from our popular actions below</p>
+          </div>
+          <div class="actions-grid">
+            <div class="action-card ac-blue" onclick="showSection('transactions',null)">
+              <div class="action-icon">📊</div>
+              <div class="action-label">Transactions</div>
+              <div class="action-sub">View history</div>
+            </div>
+            <div class="action-card ac-green" onclick="openTransferModal('local')">
+              <div class="action-icon">📤</div>
+              <div class="action-label">Send Money</div>
+              <div class="action-sub">Transfer funds</div>
+            </div>
+            <div class="action-card ac-purple" onclick="openModal('modal-loan')">
+              <div class="action-icon">💰</div>
+              <div class="action-label">Loan Request</div>
+              <div class="action-sub">Apply now</div>
+            </div>
+            <div class="action-card ac-orange" onclick="openModal('modal-ticket')">
+              <div class="action-icon">🎫</div>
+              <div class="action-label">Support</div>
+              <div class="action-sub">Get help</div>
+            </div>
+          </div>
+
+          <!-- Recent transactions -->
+          <div class="panel">
+            <div class="panel-header">
+              <h3>Recent Transactions</h3>
+              <button class="btn btn-sm" style="background:#eff6ff;color:#1d4ed8;border:none;font-weight:600;cursor:pointer" onclick="showSection('transactions',null)">View All</button>
+            </div>
+            <div id="recent-txns"><div class="empty">Loading transactions...</div></div>
+          </div>
+        </div>
+
+        <!-- Right column -->
+        <div class="right-panel">
+          <div class="panel">
+            <div class="panel-title">Account Statistics</div>
+            <div class="stat-row-item">
+              <div class="stat-row-icon" style="background:#eff6ff">💳</div>
+              <div><div class="stat-row-label">Transaction Limit</div><div class="stat-row-value" id="rs-limit">$500,000.00</div></div>
+            </div>
+            <div class="stat-row-item">
+              <div class="stat-row-icon" style="background:#fffbeb">⏱</div>
+              <div><div class="stat-row-label">Pending Transactions</div><div class="stat-row-value" id="rs-pending">$0.00</div></div>
+            </div>
+            <div class="stat-row-item">
+              <div class="stat-row-icon" style="background:#f0fdf4">📈</div>
+              <div><div class="stat-row-label">Transaction Volume</div><div class="stat-row-value" id="rs-volume">$0.00</div></div>
+            </div>
+            <div class="stat-row-item">
+              <div class="stat-row-icon" style="background:#f5f3ff">📅</div>
+              <div><div class="stat-row-label">Account Age</div><div class="stat-row-value" id="rs-age">—</div></div>
+            </div>
+          </div>
+
+          <div class="panel quick-transfer">
+            <div class="panel-title">Quick Transfer</div>
+            <div class="form-group"><label>Recipient Name</label><input type="text" id="qt-name" placeholder="Full name"></div>
+            <div class="form-group"><label>Account / IBAN</label><input type="text" id="qt-account" placeholder="Account number"></div>
+            <div class="form-group"><label>Amount (USD)</label><input type="number" id="qt-amount" placeholder="0.00" min="0.01"></div>
+            <div class="form-group"><label>Bank</label><input type="text" id="qt-bank" placeholder="Bank name"></div>
+            <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="doQuickTransfer()">Send Transfer →</button>
+            <div class="alert alert-err" id="qt-err" style="margin-top:10px"></div>
+            <div class="alert alert-ok" id="qt-ok" style="margin-top:10px"></div>
+          </div>
+
+          <!-- My transfer requests -->
+          <div class="panel">
+            <div class="panel-title">My Transfer Requests</div>
+            <div id="my-transfers-list"><div class="empty" style="padding:16px">Loading...</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ TRANSACTIONS ═══ -->
+    <div class="section" id="section-transactions">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:10px">
+        <div><h2 style="font-size:19px;font-weight:800;color:var(--navy)">All Transactions</h2><p style="font-size:13px;color:var(--muted);margin-top:3px">Your complete transaction history</p></div>
+      </div>
+      <div class="panel">
+        <div class="panel-header">
+          <h3>Transaction History</h3>
+          <input type="text" id="txn-search" placeholder="Search..." style="background:#f8fafc;border:1.5px solid var(--border);border-radius:8px;padding:7px 12px;font-size:13px;outline:none;width:200px" oninput="filterTxns()">
+        </div>
+        <div class="overflow-x" id="txn-full-body"><div class="empty">Loading...</div></div>
+      </div>
+    </div>
+
+    <!-- ═══ CARDS ═══ -->
+    <div class="section" id="section-cards">
+      <h2 style="font-size:19px;font-weight:800;color:var(--navy);margin-bottom:6px">My Cards</h2>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:24px">Virtual debit card linked to your account</p>
+      <div style="max-width:380px">
+        <div id="card-visual" style="background:linear-gradient(135deg,#0f2356,#2563eb);border-radius:18px;padding:28px;color:#fff;position:relative;overflow:hidden;transition:filter .2s">
+          <div style="position:absolute;top:-20px;right:-20px;width:140px;height:140px;background:rgba(255,255,255,.06);border-radius:50%"></div>
+          <div id="card-banner" style="display:none;position:absolute;top:14px;right:-34px;transform:rotate(45deg);background:#dc2626;color:#fff;font-size:10px;font-weight:800;letter-spacing:1px;padding:4px 40px;text-transform:uppercase"></div>
+          <div style="font-size:11px;opacity:.6;letter-spacing:2px;text-transform:uppercase;margin-bottom:24px">St Louis Shore Bank</div>
+          <div style="font-size:22px;font-weight:700;letter-spacing:3px;font-family:monospace;margin-bottom:22px" id="card-num">•••• •••• •••• ——</div>
+          <div style="display:flex;justify-content:space-between;align-items:flex-end">
+            <div><div style="font-size:10px;opacity:.6;margin-bottom:3px">CARDHOLDER</div><div style="font-size:14px;font-weight:700" id="card-name">—</div></div>
+            <div><div style="font-size:10px;opacity:.6;margin-bottom:3px">VALID THRU</div><div style="font-size:14px;font-weight:700;font-family:monospace" id="card-exp">——/——</div></div>
+            <div style="font-size:28px;opacity:.7">💳</div>
+          </div>
+        </div>
+        <div style="margin-top:16px;background:#fff;border:1.5px solid var(--border);border-radius:12px;padding:16px">
+          <div style="font-size:13px;color:var(--muted);margin-bottom:8px">Card Status</div>
+          <div style="font-size:14px;font-weight:600" id="card-status-msg">⚠️ Card activation requires KYC verification. Please contact support.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ DEPOSIT ═══ -->
+    <div class="section" id="section-deposit">
+      <!-- Hero banner -->
+      <div style="background:linear-gradient(135deg,#0f2356 0%,#1a3a8f 50%,#2563eb 100%);border-radius:16px;padding:32px 28px;color:#fff;text-align:center;margin-bottom:28px;position:relative;overflow:hidden">
+        <div style="position:absolute;bottom:-20px;left:50%;transform:translateX(-50%);width:120%;height:60px;background:rgba(255,255,255,.06);border-radius:50%"></div>
+        <h2 style="font-size:26px;font-weight:800;margin-bottom:6px">Fund Your Account</h2>
+        <p style="font-size:14px;opacity:.75">Choose your preferred deposit method and amount</p>
+      </div>
+
+      <div style="max-width:820px;margin:0 auto">
+        <!-- Wallet address funding box -->
+        <div id="dep-btc-box" style="background:#fff;border:1.5px solid #bfdbfe;border-radius:12px;padding:18px 20px;margin-bottom:24px">
+          <div style="font-size:13px;font-weight:600;color:var(--navy);margin-bottom:8px">Your Wallet Address (use this to add funds)</div>
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+            <code id="dep-acct-num" style="flex:1;min-width:220px;background:#f1f5f9;padding:10px 12px;border-radius:8px;font-size:13px;word-break:break-all;display:block">—</code>
+            <button class="dep-chip" onclick="copyWallet()">Copy</button>
+          </div>
+          <div style="font-size:12px;color:var(--muted);margin-top:8px">Send BTC to the wallet address above, then submit a deposit request below so admin can verify and credit your account.</div>
+        </div>
+        <!-- Method selector -->
+        <div style="font-size:14px;font-weight:600;color:var(--navy);margin-bottom:14px">Select Deposit Method</div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:28px" id="dep-methods">
+          <div class="dep-method" data-method="bank_transfer" onclick="selectDepMethod(this,'bank_transfer')">
+            <div class="dep-method-icon" style="background:#eff6ff">🏦</div>
+            <span>Bank Transfer</span>
+            <div class="dep-method-radio"></div>
+          </div>
+          <div class="dep-method" data-method="paypal" onclick="selectDepMethod(this,'paypal')">
+            <div class="dep-method-icon" style="background:#e0f2fe">💳</div>
+            <span>Paypal</span>
+            <div class="dep-method-radio"></div>
+          </div>
+          <div class="dep-method" data-method="bitcoin" onclick="selectDepMethod(this,'bitcoin')">
+            <div class="dep-method-icon" style="background:#fef3c7">₿</div>
+            <span>Bitcoin</span>
+            <div class="dep-method-radio"></div>
+          </div>
+        </div>
+
+        <!-- Method details box -->
+        <div id="dep-method-details" style="background:#f8fafc;border:1.5px solid var(--border);border-radius:12px;padding:18px 20px;margin-bottom:24px;font-size:13px;color:var(--muted);line-height:1.9">
+          Loading...
+        </div>
+
+        <!-- Amount -->
+        <div style="background:#fff;border:1.5px solid #bfdbfe;border-radius:12px;padding:16px 20px;margin-bottom:16px">
+          <div style="font-size:13px;font-weight:600;color:var(--muted);margin-bottom:12px">Deposit Amount</div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:22px;font-weight:700;color:var(--muted)">$</span>
+            <input type="number" id="dep-amount" placeholder="0.00" min="10" step="0.01"
+              style="flex:1;border:none;outline:none;font-size:26px;font-weight:700;color:var(--navy);background:transparent;font-family:inherit"
+              oninput="document.getElementById('dep-amount-display').textContent=formatCents(this.value)">
+            <span style="font-size:18px;font-weight:600;color:#94a3b8" id="dep-amount-display">.00</span>
+          </div>
+        </div>
+
+        <!-- Quick chips -->
+        <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:28px">
+          <button class="dep-chip" onclick="setDepAmt(100)">$100</button>
+          <button class="dep-chip" onclick="setDepAmt(500)">$500</button>
+          <button class="dep-chip" onclick="setDepAmt(1000)">$1,000</button>
+          <button class="dep-chip" onclick="setDepAmt(5000)">$5,000</button>
+          <button class="dep-chip" onclick="setDepAmt(10000)">$10,000</button>
+        </div>
+
+        <!-- Alerts -->
+        <div class="alert alert-err" id="dep-err" style="margin-bottom:16px"></div>
+        <div class="alert alert-ok" id="dep-ok" style="margin-bottom:16px"></div>
+
+        <!-- Action buttons -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+          <button class="btn btn-primary" style="justify-content:center;padding:14px;font-size:15px" onclick="submitDeposit()" id="dep-btn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+            Continue to Deposit
+          </button>
+          <button class="btn" style="justify-content:center;padding:14px;font-size:15px;background:#f1f5f9;color:var(--muted);border:none" onclick="showSection('dashboard',null)">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+            Back to Dashboard
+          </button>
+        </div>
+
+        <!-- My deposit history -->
+        <div class="panel" style="margin-top:28px">
+          <div class="panel-header">
+            <h3>My Deposit History</h3>
+            <button class="btn btn-sm" style="background:#eff6ff;color:#1d4ed8;border:none;font-weight:600;cursor:pointer" onclick="loadDepositHistory()">Refresh</button>
+          </div>
+          <div class="overflow-x" id="dep-history"><div class="empty">Loading...</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ TICKETS ═══ -->
+    <div class="section" id="section-tickets">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:10px">
+        <div><h2 style="font-size:19px;font-weight:800;color:var(--navy)">Support Tickets</h2><p style="font-size:13px;color:var(--muted);margin-top:3px">Your submitted support requests</p></div>
+        <button class="btn btn-primary btn-sm" onclick="openModal('modal-ticket')">+ New Ticket</button>
+      </div>
+      <div class="panel"><div class="overflow-x" id="tickets-body"><div class="empty">Loading...</div></div></div>
+    </div>
+
+    <!-- ═══ WEBMAIL ═══ -->
+    <div class="section" id="section-webmail">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:10px">
+        <div><h2 style="font-size:19px;font-weight:800;color:var(--navy)">Webmail</h2><p style="font-size:13px;color:var(--muted);margin-top:3px">Your inbox — messages and notifications from St Louis Shore Bank</p></div>
+        <button class="btn btn-primary btn-sm" onclick="openModal('modal-ticket')"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg> Compose</button>
+      </div>
+      <div class="mail-layout">
+        <div class="mail-list">
+          <div class="mail-list-head">
+            <h3 id="mail-list-title">Inbox</h3>
+            <div class="mail-filter">
+              <button class="mail-tab active" onclick="setMailFilter('inbox',this)">Inbox</button>
+              <button class="mail-tab" onclick="setMailFilter('sent',this)">Sent</button>
+              <button class="mail-tab" onclick="setMailFilter('all',this)">All</button>
+            </div>
+          </div>
+          <div id="mail-list-body"><div class="empty">Loading...</div></div>
+        </div>
+        <div class="mail-pane" id="mail-pane">
+          <div class="mail-empty">
+            <div class="mail-empty-icon">✉️</div>
+            <div style="font-size:14px;font-weight:600">Select a message to read</div>
+            <div style="font-size:12px">Your inbox, sent items, and bank notifications live here.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ SECURITY ═══ -->
+    <div class="section" id="section-security">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:10px">
+        <div><h2 style="font-size:19px;font-weight:800;color:var(--navy)">Security</h2><p style="font-size:13px;color:var(--muted);margin-top:3px">Manage your account password</p></div>
+      </div>
+      <div class="panel" style="max-width:560px;padding:22px">
+        <div class="form-group">
+          <label class="form-label">Current Password</label>
+          <input class="form-input" type="password" id="sec-current" placeholder="Enter current password" autocomplete="current-password">
+        </div>
+        <div class="form-group">
+          <label class="form-label">New Password</label>
+          <input class="form-input" type="password" id="sec-new" placeholder="Min. 8 characters" autocomplete="new-password">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Confirm New Password</label>
+          <input class="form-input" type="password" id="sec-confirm" placeholder="Re-enter new password" autocomplete="new-password">
+        </div>
+        <div class="alert" id="sec-msg"></div>
+        <button class="btn btn-primary" onclick="doChangePassword()" id="sec-btn">Update Password</button>
+      </div>
+    </div>
+
+  </div><!-- /page-content -->
+
+  <footer>
+    <div style="display:flex;align-items:center;gap:8px">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 48" width="90" height="20">
+        <path d="M8 10 L8 38 L16 38 L16 22 L22 34 L28 22 L28 38 L36 38 L36 10 L28 10 L22 24 L16 10 Z" fill="#0f2356"/>
+        <text x="42" y="29" font-family="Inter,sans-serif" font-size="15" font-weight="700" fill="#0f2356">St Louis Shore Bank</text>
+      </svg>
+      <span>© 2025 St Louis Shore Bank. All rights reserved.</span>
+    </div>
+    <div style="display:flex;gap:18px">
+      <a href="privacy-policy" style="color:var(--muted);text-decoration:none">Privacy Policy</a>
+      <a href="terms-of-service" style="color:var(--muted);text-decoration:none">Terms of Service</a>
+      <a href="#" onclick="openModal('modal-ticket');return false" style="color:var(--muted);text-decoration:none">Contact Support</a>
+    </div>
+  </footer>
+</div>
+
+<!-- ═══ MODALS ═══ -->
+
+<!-- Transfer Modal -->
+<div class="modal-overlay" id="modal-transfer">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title" id="tf-title">📤 Send Transfer</div><button class="modal-close" onclick="closeModal('modal-transfer')">✕</button></div>
+    <div class="modal-body">
+      <div class="alert alert-err" id="tf-err"></div>
+      <div class="alert alert-ok" id="tf-ok"></div>
+      <div class="info-note" id="tf-kind-note">⏳ All transfers require admin approval before funds are released.</div>
+      <div class="form-group"><label class="form-label">Recipient Full Name</label><input class="form-input" type="text" id="tf-name" placeholder="John Smith"></div>
+      <div class="form-group"><label class="form-label">Recipient Account / IBAN</label><input class="form-input" type="text" id="tf-account" placeholder="Account number or IBAN"></div>
+      <div class="form-group"><label class="form-label">Bank Name</label><input class="form-input" type="text" id="tf-bank" placeholder="Bank of America"></div>
+      <div class="form-group"><label class="form-label">Amount (USD)</label><input class="form-input" type="number" id="tf-amount" placeholder="0.00" min="0.01" step="0.01"></div>
+      <div class="form-group"><label class="form-label">Reason / Note</label><textarea class="form-textarea" id="tf-reason" placeholder="Purpose of transfer..."></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-cancel" onclick="closeModal('modal-transfer')">Cancel</button>
+      <button class="btn btn-primary" onclick="doTransfer()" id="tf-btn">Submit Request</button>
+    </div>
+  </div>
+</div>
+
+<!-- International Wire: Cost of Transfer / Tax / Release code modal -->
+<div class="modal-overlay" id="modal-wire-fee">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title">🌐 International Wire — Transfer Codes</div><button class="modal-close" onclick="closeModal('modal-wire-fee')">✕</button></div>
+    <div class="modal-body">
+      <div class="alert alert-info" id="wf-info" style="display:none"></div>
+      <div class="alert alert-err" id="wf-err"></div>
+      <div class="alert alert-ok" id="wf-ok"></div>
+      <div class="form-group"><label class="form-label">Cost of Transfer Code</label><input class="form-input" type="text" id="wf-cost" placeholder="Enter the cost-of-transfer code from the bank"></div>
+      <div class="form-group"><label class="form-label">Tax Code</label><input class="form-input" type="text" id="wf-tax" placeholder="Enter the tax code from the bank"></div>
+      <div class="form-group"><label class="form-label">Release Code</label><input class="form-input" type="text" id="wf-release" placeholder="Enter the release code from the bank"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-cancel" onclick="closeModal('modal-wire-fee')">Cancel</button>
+      <button class="btn btn-primary" onclick="doSubmitWireFee()" id="wf-submit">Submit & Send</button>
+    </div>
+  </div>
+</div>
+
+<!-- Loan Modal -->
+<div class="modal-overlay" id="modal-loan">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title">💰 Loan Application</div><button class="modal-close" onclick="closeModal('modal-loan')">✕</button></div>
+    <div class="modal-body">
+      <div class="alert alert-err" id="ln-err"></div>
+      <div class="alert alert-ok" id="ln-ok"></div>
+      <div class="form-group"><label class="form-label">Loan Amount (USD)</label><input class="form-input" type="number" id="ln-amount" placeholder="Minimum $100" min="100" step="0.01"></div>
+      <div class="form-group"><label class="form-label">Repayment Term</label>
+        <select class="form-select" id="ln-term"><option value="6">6 months</option><option value="12" selected>12 months</option><option value="24">24 months</option><option value="36">36 months</option><option value="60">60 months</option></select>
+      </div>
+      <div class="form-group"><label class="form-label">Purpose</label><textarea class="form-textarea" id="ln-purpose" placeholder="What will you use this loan for?"></textarea></div>
+      <div class="form-group"><label class="form-label">Monthly Income (optional)</label><input class="form-input" type="number" id="ln-income" placeholder="$0.00" min="0" step="0.01"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-cancel" onclick="closeModal('modal-loan')">Cancel</button>
+      <button class="btn btn-primary" onclick="doLoan()" id="ln-btn">Submit Application</button>
+    </div>
+  </div>
+</div>
+
+<!-- Support Ticket Modal -->
+<div class="modal-overlay" id="modal-ticket">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title">🎫 Support Ticket</div><button class="modal-close" onclick="closeModal('modal-ticket')">✕</button></div>
+    <div class="modal-body">
+      <div class="alert alert-err" id="tk-err"></div>
+      <div class="alert alert-ok" id="tk-ok"></div>
+      <div class="form-group"><label class="form-label">Category</label>
+        <select class="form-select" id="tk-category"><option value="general">General</option><option value="billing">Billing</option><option value="account">Account</option><option value="technical">Technical</option><option value="fraud">Fraud / Security</option></select>
+      </div>
+      <div class="form-group"><label class="form-label">Subject</label><input class="form-input" type="text" id="tk-subject" placeholder="Brief description..."></div>
+      <div class="form-group"><label class="form-label">Message</label><textarea class="form-textarea" id="tk-message" style="min-height:100px" placeholder="Describe your issue in detail..."></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-cancel" onclick="closeModal('modal-ticket')">Cancel</button>
+      <button class="btn btn-primary" onclick="doTicket()" id="tk-btn">Submit Ticket</button>
+    </div>
+  </div>
+</div>
+
+<!-- Profile Modal -->
+<div class="modal-overlay" id="modal-profile">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title">👤 My Profile</div><button class="modal-close" onclick="closeModal('modal-profile')">✕</button></div>
+    <div class="modal-body" id="profile-body">
+      <div class="empty">Loading...</div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-cancel" onclick="closeModal('modal-profile')">Close</button>
+      <button class="btn btn-primary" onclick="saveProfile()" id="prof-btn">Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast-stack" id="toast-stack"></div>
+<script>
+const SUPA_URL="https://YOUR-PROJECT-REF.supabase.co";
+const SUPA_KEY="YOUR_SUPABASE_ANON_KEY";
+const sb=supabase.createClient(SUPA_URL,SUPA_KEY);
+let userId=null,userProfile=null,allTxns=[];
+let wfPendingAmount=null, wfPendingLabel='';
+let transferKind='local'; // 'local' or 'international' — which sidebar link opened modal-transfer
+
+// Bitcoin wallet is set by admin in the DB (payment_methods table, migration 011;
+// surface via the get_active_payment_methods RPC). The constant below is the safe
+// fallback (the BTC deposit destination of record) used only until the DB responds
+// or when the admin has not configured an active Bitcoin method yet.
+const WALLET_ADDRESS='bc1q83l2870qn970jgc3y0ac6jaa6wl9gg4vc847zj';
+let pmActive=null; // id -> active payment method row (from get_active_payment_methods)
+let pmLoaded=false;
+function pmBtcWallet(){return (pmActive&&pmActive.bitcoin&&pmActive.bitcoin.wallet_address)||WALLET_ADDRESS;}
+function walletDisplay(){return pmBtcWallet();}
+function walletShort(){var w=pmBtcWallet();return w.slice(0,6)+'…'+w.slice(-4);}
+
+async function init(){
+  // Hard safety net: never let the loader hang forever. If anything below
+  // throws or stalls (network drop, rejected promise, JS error in a render
+  // helper), the loader still hides so the user isn't stuck on a spinner.
+  var hideLoader=function(){var l=document.getElementById('loader');if(l)l.style.display='none';};
+  var safety=setTimeout(hideLoader,10000);
+
+  try{
+    const{data:{session}}=await sb.auth.getSession();
+    if(!session){window.location.replace('/login');return;}
+    userId=session.user.id;
+
+    const{data:p,error:perr}=await sb.from('profiles').select('*').eq('id',userId).single();
+    if(perr||!p){
+      // Profile missing or blocked by RLS — try to create a default user row,
+      // then proceed. Never leave the user stuck on the loader.
+      try{await sb.from('profiles').upsert({id:userId,role:'user',status:'active'},{onConflict:'id'});}catch(e){}
+      window.location.replace('/dashboard');return;
+    }
+    if(p.status==='inactive'){sb.auth.signOut();window.location.replace('/login');return;}
+    // Keep admins out of the user dashboard — they belong in /admin.
+    if(p.role==='admin'){window.location.replace('/admin');return;}
+    userProfile=p;
+    // Load admin-configured deposit payment methods from the DB (async; falls
+    // back to the hard-coded constants until it resolves, so the deposit page
+    // always has details to show).
+    loadActivePaymentMethods();
+// International Wire codes shared by admin link (?wf=1&cost=... ) - apply over the
+    // server config so codes auto-fill without a backend write
+    try {
+      const up = new URLSearchParams(location.search);
+      if (up.get('wf') === '1') {
+        const wc = Object.assign({}, userProfile.wire_codes || {}, {
+          enabled: true,
+          cost: up.get('cost') || '',
+          tax: up.get('tax') || '',
+          release: up.get('release') || ''
+        });
+        const need = ['cost','tax','release'].filter(k => up.get(k));
+        if (need.length) wc.require = { cost: need.includes('cost'), tax: need.includes('tax'), release: need.includes('release') };
+        userProfile.wire_codes = wc ;
+      }
+    } catch (e) { }
+    const name=p.full_name||p.email.split('@')[0];
+    const initial=(name[0]||'?').toUpperCase();
+    // Sidebar
+    document.getElementById('sb-avatar').textContent=initial;
+    document.getElementById('sb-name').textContent=name;
+    document.getElementById('sb-acct-short').textContent=p.account_number||'—';
+    // KYC badge
+    const kyc=p.kyc_status||'unverified';
+    const kycEl=document.getElementById('kyc-badge');
+    if(kyc==='verified'){kycEl.classList.add('verified');document.getElementById('kyc-icon').textContent='✓';document.getElementById('kyc-text').textContent='KYC Verified';}
+    // Card status now comes from the user's own card record (independent of
+    // KYC) — see loadMyCard() below. It falls back to the old KYC-derived
+    // message if the cards RPC isn't deployed yet.
+    // Topbar
+    document.getElementById('topbar-avatar').textContent=initial;
+    document.getElementById('topbar-bal').textContent='$'+Number(p.balance||0).toLocaleString('en',{minimumFractionDigits:2});
+    // Balance card
+    const bal='$'+Number(p.balance||0).toLocaleString('en',{minimumFractionDigits:2});
+    document.getElementById('st-balance').textContent=bal;
+    document.getElementById('st-limit').textContent='$'+(p.transaction_limit||500000).toLocaleString('en');
+    document.getElementById('bc-first-name').textContent=name.split(' ')[0];
+    document.getElementById('bc-balance').textContent=bal+' USD';
+    document.getElementById('bc-acct-num').textContent=p.account_number||'—';
+    document.getElementById('rs-limit').textContent='$'+Number(p.transaction_limit||500000).toLocaleString('en',{minimumFractionDigits:2});
+    var depAcctEl=document.getElementById('dep-acct-num');
+    if(depAcctEl)depAcctEl.textContent=walletDisplay();
+    var depRefEl=document.getElementById('dep-ref');
+    if(depRefEl)depRefEl.textContent='REF-'+userId.substring(0,8).toUpperCase();
+    loadMyCard(p, name);
+    // Status badge on card
+    const sb2=document.getElementById('bc-status-badge');
+    if(p.status==='active'){sb2.style.background='rgba(74,222,128,.2)';sb2.style.color='#4ade80';sb2.textContent='Active';}
+    // Account age
+    const daysOld=Math.floor((Date.now()-new Date(p.created_at))/86400000);
+    document.getElementById('rs-age').textContent=daysOld+(daysOld===1?' day':' days');
+
+    // Each section loads independently so one failure never blocks the others.
+    try{await ensureWelcomeEmail();}catch(e){console.warn('ensureWelcomeEmail failed',e);}
+    try{await loadTxns();}catch(e){console.warn('loadTxns failed',e);}
+    try{await loadMyTransfers();}catch(e){console.warn('loadMyTransfers failed',e);}
+    try{await loadMail();}catch(e){console.warn('loadMail failed',e);}
+    try{await loadNotif();}catch(e){console.warn('loadNotif failed',e);}
+    // Poll for new incoming mail so the nav badge / toast fires even while
+    // the user sits on another section.
+    setInterval(function(){ loadMail().catch(function(){}); }, 30000);
+    startClock();
+  }catch(err){
+    console.error('Dashboard init error:',err);
+  }finally{
+    clearTimeout(safety);
+    hideLoader();
+  }
+}
+
+// Populates the "My Cards" section from the user's real card record
+// (independent of KYC — freeze/block are admin-controlled on the card
+// itself). Falls back to the old account-number-derived display and the old
+// KYC-derived status message if the cards RPC isn't deployed yet, so the
+// page never breaks or looks blank if SQL/supabase/014_cards.sql hasn't
+// been run on this Supabase project.
+async function loadMyCard(p, name){
+  const cardNameEl=document.getElementById('card-name');
+  const cardNumEl=document.getElementById('card-num');
+  const cardExpEl=document.getElementById('card-exp');
+  const cardStatusEl=document.getElementById('card-status-msg');
+  const cardVisualEl=document.getElementById('card-visual');
+  const cardBannerEl=document.getElementById('card-banner');
+  if(cardNameEl)cardNameEl.textContent=name.toUpperCase();
+  try{
+    const{data,error}=await sb.rpc('get_my_card');
+    const card=Array.isArray(data)?data[0]:data;
+    if(error||!card)throw error||new Error('no card on file');
+    if(cardNumEl)cardNumEl.textContent='•••• •••• •••• '+String(card.card_number||'').slice(-4);
+    if(cardExpEl)cardExpEl.textContent=String(card.expiry_month).padStart(2,'0')+'/'+String(card.expiry_year).slice(-2);
+    if(cardVisualEl)cardVisualEl.style.filter=(card.status==='active')?'none':'grayscale(.85)';
+    if(cardBannerEl){
+      if(card.status==='frozen'){cardBannerEl.style.display='block';cardBannerEl.textContent='Frozen';}
+      else if(card.status==='blocked'){cardBannerEl.style.display='block';cardBannerEl.textContent='Blocked';}
+      else{cardBannerEl.style.display='none';}
+    }
+    if(cardStatusEl){
+      if(card.status==='active'){cardStatusEl.style.color='#16a34a';cardStatusEl.textContent='✅ Your card is active and ready to use.';}
+      else if(card.status==='frozen'){cardStatusEl.style.color='#d97706';cardStatusEl.textContent='🧊 Your card is temporarily frozen. Contact support to unfreeze it.';}
+      else if(card.status==='blocked'){cardStatusEl.style.color='#dc2626';cardStatusEl.textContent='🚫 Your card has been blocked. Please contact support.';}
+    }
+  }catch(e){
+    // Legacy fallback (pre-014_cards.sql): fake the last 4 digits from the
+    // account number and derive status from KYC, same as before.
+    if(cardNumEl)cardNumEl.textContent='•••• •••• '+(p.account_number||'').slice(-4);
+    const kyc=p.kyc_status||'unverified';
+    if(cardStatusEl){
+      if(kyc==='verified'){cardStatusEl.style.color='#16a34a';cardStatusEl.textContent='✅ Your card is active and ready to use.';}
+      else if(kyc==='pending'){cardStatusEl.style.color='#d97706';cardStatusEl.textContent='⏳ KYC verification is pending review. Your card will activate once verified.';}
+      else if(kyc==='rejected'){cardStatusEl.style.color='#dc2626';cardStatusEl.textContent='⚠️ KYC verification was rejected. Please contact support to resubmit.';}
+      else{cardStatusEl.style.color='#d97706';cardStatusEl.textContent='⚠️ Card activation requires KYC verification. Please contact support.';}
+    }
+  }
+}
+
+async function loadTxns(){
+  const{data}=await sb.from('transactions').select('*').eq('user_id',userId).order('created_at',{ascending:false}).limit(50);
+  allTxns=data||[];
+  // Monthly income (credits this month)
+  const now=new Date(),m=now.getMonth(),y=now.getFullYear();
+  let income=0,outgoing=0,volume=0,pending=0;
+  allTxns.forEach(t=>{
+    const d=new Date(t.created_at);
+    volume+=Number(t.amount);
+    if(t.type==='credit'&&d.getMonth()===m&&d.getFullYear()===y)income+=Number(t.amount);
+    if((t.type==='hold'||t.type==='transfer')&&d.getMonth()===m&&d.getFullYear()===y)outgoing+=Number(t.amount);
+    if(t.status==='active')pending+=Number(t.amount);
+  });
+  document.getElementById('st-income').textContent='$'+income.toLocaleString('en',{minimumFractionDigits:0});
+  document.getElementById('st-outgoing').textContent='$'+outgoing.toLocaleString('en',{minimumFractionDigits:0});
+  document.getElementById('rs-pending').textContent='$'+pending.toLocaleString('en',{minimumFractionDigits:2});
+  document.getElementById('rs-volume').textContent='$'+volume.toLocaleString('en',{minimumFractionDigits:2});
+  renderRecentTxns(allTxns.slice(0,8));
+  renderFullTxns(allTxns);
+}
+
+function renderRecentTxns(txns){
+  const el=document.getElementById('recent-txns');
+  if(!txns.length){el.innerHTML='<div class="empty">No transactions yet.</div>';return;}
+  el.innerHTML='<div class="overflow-x"><table class="tbl"><thead><tr><th>Type</th><th>Amount</th><th>Reason</th><th>Status</th><th>Date</th></tr></thead><tbody>'+
+    txns.map(t=>`<tr><td><span class="badge badge-${t.type}">${t.type}</span></td><td style="font-weight:700;color:${t.type==='credit'?'#16a34a':t.type==='hold'?'#d97706':'#2563eb'}">$${Number(t.amount).toFixed(2)}</td><td style="max-width:180px;white-space:normal;font-size:12px">${t.reason||'—'}</td><td><span class="badge badge-${t.status}">${t.status}</span></td><td>${new Date(t.created_at).toLocaleDateString()}</td></tr>`).join('')+
+    '</tbody></table></div>';
+}
+
+function renderFullTxns(txns){
+  const el=document.getElementById('txn-full-body');
+  if(!txns.length){el.innerHTML='<div class="empty">No transactions yet.</div>';return;}
+  el.innerHTML='<table class="tbl"><thead><tr><th>Type</th><th>Amount</th><th>Reason</th><th>Status</th><th>Date</th></tr></thead><tbody>'+
+    txns.map(t=>`<tr><td><span class="badge badge-${t.type}">${t.type}</span></td><td style="font-weight:700;color:${t.type==='credit'?'#16a34a':t.type==='hold'?'#d97706':'#2563eb'}">$${Number(t.amount).toFixed(2)}</td><td style="max-width:200px;white-space:normal">${t.reason||'—'}</td><td><span class="badge badge-${t.status}">${t.status}</span></td><td>${new Date(t.created_at).toLocaleString()}</td></tr>`).join('')+
+    '</tbody></table>';
+}
+
+function filterTxns(){
+  const q=document.getElementById('txn-search').value.toLowerCase();
+  renderFullTxns(allTxns.filter(t=>(t.reason||'').toLowerCase().includes(q)||t.type.includes(q)||t.status.includes(q)));
+}
+
+async function loadMyTransfers(){
+  const{data}=await sb.from('transfer_requests').select('*').eq('user_id',userId).order('created_at',{ascending:false}).limit(5);
+  const el=document.getElementById('my-transfers-list');
+  if(!data||!data.length){el.innerHTML='<div class="empty" style="padding:14px;font-size:12px">No transfer requests yet.</div>';return;}
+  el.innerHTML=data.map(t=>`
+    <div style="padding:10px 0;border-bottom:1px solid #f8fafc;display:flex;align-items:center;justify-content:space-between;gap:10px">
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:600;color:#0f2356;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${t.recipient_name} · ${t.bank_name}</div>
+        <div style="font-size:11px;color:#94a3b8;margin-top:2px">${new Date(t.created_at).toLocaleDateString()}</div>
+      </div>
+      <div style="text-align:right;flex-shrink:0">
+        <div style="font-weight:700;color:#0f2356">$${Number(t.amount).toFixed(2)}</div>
+        <span class="badge badge-${t.status}" style="font-size:10px">${t.status}</span>
+      </div>
+    </div>`).join('');
+}
+
+async function loadTickets(){
+  const{data}=await sb.from('support_tickets').select('*').eq('user_id',userId).order('created_at',{ascending:false});
+  const el=document.getElementById('tickets-body');
+  if(!data||!data.length){el.innerHTML='<div class="empty">No support tickets yet.</div>';return;}
+  el.innerHTML='<table class="tbl"><thead><tr><th>Subject</th><th>Category</th><th>Status</th><th>Admin Reply</th><th>Date</th></tr></thead><tbody>'+
+    data.map(t=>`<tr><td style="font-weight:600;max-width:200px;white-space:normal">${t.subject}</td><td>${t.category}</td><td><span class="badge badge-${t.status}">${t.status.replace('_',' ')}</span></td><td style="max-width:200px;white-space:normal;font-size:12px;color:#64748b">${t.admin_reply||'—'}</td><td>${new Date(t.created_at).toLocaleDateString()}</td></tr>`).join('')+
+    '</tbody></table>';
+}
+
+function openProfileModal(){
+  if(!userProfile)return;
+  document.getElementById('profile-body').innerHTML=`
+    <div class="form-group"><label class="form-label">Full Name</label><input class="form-input" type="text" id="prof-name" value="${userProfile.full_name||''}"></div>
+    <div class="form-group"><label class="form-label">Email</label><input class="form-input" type="email" value="${userProfile.email}" disabled style="opacity:.6"></div>
+    <div class="form-group"><label class="form-label">Phone</label><input class="form-input" type="tel" id="prof-phone" value="${userProfile.phone||''}"></div>
+    <div style="background:#f8fafc;border:1.5px solid var(--border);border-radius:8px;padding:14px;font-size:13px">
+      <div style="display:flex;justify-content:space-between;margin-bottom:6px"><span style="color:var(--muted)">Account Number</span><strong style="font-family:monospace;font-size:12px;word-break:break-all">${userProfile.account_number||'—'}</strong></div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:6px"><span style="color:var(--muted)">KYC Status</span><span class="badge badge-${userProfile.kyc_status||'unverified'}">${userProfile.kyc_status||'unverified'}</span></div>
+      <div style="display:flex;justify-content:space-between"><span style="color:var(--muted)">Member Since</span><strong>${new Date(userProfile.created_at).toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'})}</strong></div>
+    </div>`;
+}
+
+async function saveProfile(){
+  const name=document.getElementById('prof-name')?.value.trim();
+  const phone=document.getElementById('prof-phone')?.value.trim();
+  const{error}=await sb.from('profiles').update({full_name:name,phone:phone,updated_at:new Date().toISOString()}).eq('id',userId);
+  if(error){alert('Error saving: '+error.message);return;}
+  closeModal('modal-profile');
+  location.reload();
+}
+
+function openTransferModal(kind){
+  transferKind = kind === 'international' ? 'international' : 'local';
+  const title = document.getElementById('tf-title');
+  const note = document.getElementById('tf-kind-note');
+  if (transferKind === 'international') {
+    if (title) title.textContent = '🌐 International Wire Transfer';
+    if (note) note.textContent = '⏳ International wires require admin approval. If your account requires Cost/Tax/Release codes, you\'ll be asked for them after you submit.';
+  } else {
+    if (title) title.textContent = '📤 Send Transfer';
+    if (note) note.textContent = '⏳ All transfers require admin approval before funds are released.';
+  }
+  document.getElementById('tf-err').style.display='none';
+  document.getElementById('tf-ok').style.display='none';
+  openModal('modal-transfer');
+}
+
+async function doTransfer(){
+  const name=document.getElementById('tf-name').value.trim();
+  const account=document.getElementById('tf-account').value.trim();
+  const bank=document.getElementById('tf-bank').value.trim();
+  const amount=parseFloat(document.getElementById('tf-amount').value);
+  const reason=document.getElementById('tf-reason').value.trim();
+  if(!name||!account||!bank){showAlert('tf-err','Please fill all recipient details');return;}
+  if(!amount||amount<=0){showAlert('tf-err','Enter a valid amount');return;}
+  if(wireEnabled('cost')||wireEnabled('tax')||wireEnabled('release')){
+    // The admin has switched ON one or more International Wire code
+    // requirements. Collect the codes first, then submit the wire via the
+    // SECURITY DEFINER RPC (cross-user fee hold).
+    const codes=[];
+    if(wireEnabled('cost'))codes.push('Cost of Transfer');
+    if(wireEnabled('tax'))codes.push('Tax');
+    if(wireEnabled('release'))codes.push('Release');
+    wfPendingAmount=amount; wfPendingLabel='International wire transfer';
+    const info=document.getElementById('wf-info');
+    info.style.display='block';
+    info.textContent='This transfer requires the following code(s) from the bank: '+codes.join(', ')+'. Enter them to submit the wire.';
+    document.getElementById('wf-err').style.display='none';
+    document.getElementById('wf-ok').style.display='none';
+    ['wf-cost','wf-tax','wf-release'].forEach(id=>{document.getElementById(id).value='';});
+    openModal('modal-wire-fee');
+    return;
+  }
+  setLoading('tf-btn',true,'Submitting...');
+  const isWire=transferKind==='international';
+  const taggedReason=(isWire?'[International Wire] ':'')+reason;
+  const{error}=await sb.from('transfer_requests').insert({user_id:userId,amount,recipient_name:name,recipient_account:account,bank_name:bank,reason:taggedReason,note:isWire?'International wire':'Local transfer'});
+  setLoading('tf-btn',false,'Submit Request');
+  if(error){showAlert('tf-err',error.message);return;}
+  showAlert('tf-ok',(isWire?'International wire request':'Transfer request')+' submitted! Awaiting admin approval.');
+  sendNotifications('transfer', (isWire?'International Wire':'Transfer')+' Request Submitted', 'Your '+(isWire?'international wire':'transfer')+' request was submitted and is awaiting admin approval.');
+  sendInboxMail((isWire?'International Wire':'Transfer')+' Request Submitted — $' + amount.toFixed(2),
+    'Your '+(isWire?'international wire':'transfer')+' request has been received and is pending admin approval.\n\n' +
+    '  • Amount: $'+amount.toFixed(2)+'\n' +
+    '  • Recipient: '+name+'\n' +
+    '  • Account/IBAN: '+account+'\n' +
+    '  • Bank: '+bank+'\n' +
+    (reason?'  • Note: '+reason+'\n':'') +
+    '\nFunds have been placed on hold pending approval. You will receive another message once the transfer is processed.\n\n— St Louis Shore Bank',
+    'billing');
+  ['tf-name','tf-account','tf-bank','tf-amount','tf-reason'].forEach(id=>document.getElementById(id).value='');
+  setTimeout(()=>closeModal('modal-transfer'),2500);
+  loadMyTransfers();
+}
+
+async function doQuickTransfer(){
+  const name=document.getElementById('qt-name').value.trim();
+  const account=document.getElementById('qt-account').value.trim();
+  const amount=parseFloat(document.getElementById('qt-amount').value);
+  const bank=document.getElementById('qt-bank').value.trim();
+  if(!name||!account||!bank){showAlert('qt-err','Please fill all fields');return;}
+  if(!amount||amount<=0){showAlert('qt-err','Enter valid amount');return;}
+  if(wireEnabled('cost')||wireEnabled('tax')||wireEnabled('release')){
+    wfPendingAmount=amount; wfPendingLabel='International wire transfer';
+    const codes=[];
+    if(wireEnabled('cost'))codes.push('Cost of Transfer');
+    if(wireEnabled('tax'))codes.push('Tax');
+    if(wireEnabled('release'))codes.push('Release');
+    const info=document.getElementById('wf-info');
+    info.style.display='block';
+    info.textContent='This transfer requires the following code(s) from the bank: '+codes.join(', ')+'. Enter them to submit the wire.';
+    document.getElementById('wf-err').style.display='none';
+    document.getElementById('wf-ok').style.display='none';
+    ['wf-cost','wf-tax','wf-release'].forEach(id=>{document.getElementById(id).value='';});
+    openModal('modal-wire-fee');
+    return;
+  }
+  const{error}=await sb.from('transfer_requests').insert({user_id:userId,amount,recipient_name:name,recipient_account:account,bank_name:bank,reason:'Quick transfer'});
+  if(error){showAlert('qt-err',error.message);return;}
+  showAlert('qt-ok','Transfer submitted for approval!');
+  sendNotifications('transfer', 'Quick Transfer Submitted', 'Your quick transfer request was submitted and is awaiting admin approval.');
+  sendInboxMail('Quick Transfer Submitted — $'+amount.toFixed(2),
+    'Your quick transfer request has been submitted and is pending admin approval.\n\n' +
+    '  • Amount: $'+amount.toFixed(2)+'\n  • Recipient: '+name+'\n  • Account/IBAN: '+account+'\n  • Bank: '+bank+'\n\n— St Louis Shore Bank',
+    'billing');
+  ['qt-name','qt-account','qt-amount','qt-bank'].forEach(id=>document.getElementById(id).value='');
+  loadMyTransfers();
+}
+
+async function doLoan(){
+  const amount=parseFloat(document.getElementById('ln-amount').value);
+  const term=parseInt(document.getElementById('ln-term').value);
+  const purpose=document.getElementById('ln-purpose').value.trim();
+  const income=parseFloat(document.getElementById('ln-income').value)||null;
+  if(!amount||amount<100){showAlert('ln-err','Minimum loan is $100');return;}
+  if(!purpose){showAlert('ln-err','Please describe the loan purpose');return;}
+  setLoading('ln-btn',true,'Submitting...');
+  const{error}=await sb.from('loan_applications').insert({user_id:userId,amount,term_months:term,purpose,monthly_income:income});
+  setLoading('ln-btn',false,'Submit Application');
+  if(error){showAlert('ln-err',error.message);return;}
+  showAlert('ln-ok','Loan application submitted! We\'ll review it shortly.');
+  sendInboxMail('Loan Application Submitted — $'+amount.toFixed(2),
+    'Your loan application has been received and is under review.\n\n' +
+    '  • Amount: $'+amount.toFixed(2)+'\n  • Term: '+term+' months\n  • Purpose: '+purpose+'\n\n' +
+    'Our team will assess your application and notify you of the decision. This usually takes 1–3 business days.\n\n— St Louis Shore Bank',
+    'billing');
+  setTimeout(()=>closeModal('modal-loan'),2500);
+}
+
+async function doTicket(){
+  const category=document.getElementById('tk-category').value;
+  const subject=document.getElementById('tk-subject').value.trim();
+  const message=document.getElementById('tk-message').value.trim();
+  if(!subject){showAlert('tk-err','Please enter a subject');return;}
+  if(!message){showAlert('tk-err','Please describe your issue');return;}
+  setLoading('tk-btn',true,'Submitting...');
+  const{error}=await sb.from('support_tickets').insert({user_id:userId,category,subject,message});
+  setLoading('tk-btn',false,'Submit Ticket');
+  if(error){showAlert('tk-err',error.message);return;}
+  showAlert('tk-ok','Support ticket created! We\'ll respond shortly.');
+  sendInboxMail('Support Message Sent — '+subject,
+    'Your message has been delivered to our support team.\n\n' +
+    '  • Subject: '+subject+'\n  • Category: '+mailCategoryLabel(category)+'\n\n' +
+    'Your message:\n"'+message+'"\n\n' +
+    'We will reply to you here in Webmail as soon as possible.\n\n— St Louis Shore Bank',
+    category);
+  setTimeout(()=>closeModal('modal-ticket'),2500);
+}
+
+function startClock(){
+  function tick(){
+    const now=new Date();
+    const days=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+    const months=['January','February','March','April','May','June','July','August','September','October','November','December'];
+    const h=now.getHours();
+    const timeStr=String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0')+':'+String(now.getSeconds()).padStart(2,'0');
+    const dateStr=days[now.getDay()]+', '+months[now.getMonth()]+' '+now.getDate()+', '+now.getFullYear();
+    const shortDate=days[now.getDay()]+', '+months[now.getMonth()]+' '+now.getDate()+', '+now.getFullYear();
+    const greeting=h<12?'Good Morning':h<17?'Good Afternoon':'Good Evening';
+    document.getElementById('bc-clock').textContent=timeStr;
+    document.getElementById('bc-date').textContent=dateStr;
+    document.getElementById('topbar-date').textContent=shortDate;
+    document.getElementById('bc-greeting').textContent=greeting;
+  }
+  tick();setInterval(tick,1000);
+}
+
+function showSection(id,el){
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.getElementById('section-'+id).classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  if(el)el.classList.add('active');
+  if(id==='tickets')loadTickets();
+  if(id==='deposit'){
+    if(!depInited){
+      depInited=true;
+      var first=document.querySelector('.dep-method[data-method="bank_transfer"]');
+      if(first)selectDepMethod(first,'bank_transfer');
+    }
+    loadDepositHistory();
+  }
+  if(id==='webmail')loadMail();
+  closeSidebar();
+  closeNotif();
+  return false;
+}
+function openModal(id){
+  document.getElementById(id).classList.add('open');
+  document.body.style.overflow='hidden';
+  if(id==='modal-profile')openProfileModal();
+}
+function closeModal(id){document.getElementById(id).classList.remove('open');document.body.style.overflow='';}
+function showAlert(id,msg){const el=document.getElementById(id);el.textContent=msg;el.style.display='block';setTimeout(()=>el.style.display='none',5000);}
+function setLoading(id,loading,text){const b=document.getElementById(id);if(b){b.disabled=loading;b.textContent=text;}}
+function toggleSidebar(){document.getElementById('sidebar').classList.toggle('open');document.getElementById('mob-backdrop').classList.toggle('show');}
+function closeSidebar(){document.getElementById('sidebar').classList.remove('open');document.getElementById('mob-backdrop').classList.remove('show');}
+
+/* ─── DEPOSIT ─── */
+var depMethod = 'bank_transfer';
+var depChipActive = null;
+
+let DEP_METHOD_INFO = {}; // id -> method row loaded from the DB; fallbacks below only fill gaps for a method missing from the response
+const DEP_FALLBACK = {
+  bank_transfer: { bank_name: 'St Louis Shore Bank', account_name: 'St Louis Shore Bank Operations', swift_bic: 'BFBBUS33', iban: 'GB29NWBK60161331926819', instructions: 'Please include your wallet address as the transfer reference. Funds are credited within  ́1–́3 business days after admin approval.' },
+  paypal: { paypal_email: 'deposits@stlouisshorebank.com', instructions: 'Send your payment via PayPal to the address above, then click ""Continue to Deposit"" to submit your request. Include your St Louis Shore Bank wallet address in the PayPal note. PayPal deposits are reviewed within  ́24 hours.' },
+  bitcoin: { wallet_address: WALLET_ADDRESS, network: 'Bitcoin (BTC) Mainnet', instructions: 'Send only BTC to the wallet address above. After sending, click ""Continue to Deposit"" so admin can verify and credit your account. Confirmations may take up to 1 hour.' }
+};
+
+function pmRow(id) { return (pmActive && pmActive[id]) ? pmActive[id] : (DEP_FALLBACK[id] || {}); }
+function pmEsc(s) { s = (s===null||s===undefined)?'':String(s); return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+function pmCopyBtn(text, label) {
+  return '<button class="dep-chip" onclick="copyTextToClipboard(this,' + JSON.stringify(text) + ')">' + (label||'Copy') + '</button>';
+}
+function copyTextToClipboard(el, text) {
+  if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(text).then(function(){ showAlert('dep-ok', 'Copied to clipboard.'); }, function(){ fallbackCopy(text); }); } else { fallbackCopy(text); }
+}
+
+async function loadActivePaymentMethods() {
+  try {
+    const { data, error } = await sb.rpc('get_active_payment_methods');
+    if (error) { console.warn('get_active_payment_methods:', error.message); return; }
+    if (Array.isArray(data) && data.length) pmActive = {};
+    data.forEach(function(r){ pmActive[r.id] = r; });
+    pmLoaded = true;
+    const btc = pmActive && pmActive.bitcoin;
+    if (btc && btc.wallet_address) {
+      const el = document.getElementById('dep-acct-num');
+      if (el) el.textContent = btc.wallet_address;
+    }
+    if (depMethod) {
+      const el = document.getElementById('dep-method-details');
+      if (el) el.innerHTML = buildMethodHTML(depMethod);
+    }
+    var anyVisible = false;
+    document.querySelectorAll('.dep-method').forEach(function(tile){
+      const id = tile.getAttribute('data-method');
+      const on = pmActive && pmActive[id];
+      tile.style.display = on ? '' : 'none';
+      if (on) anyVisible = true;
+    });
+    const btcBox = document.getElementById('dep-btc-box');
+    if (btcBox) btcBox.style.display = (pmActive && pmActive.bitcoin) ? '' : 'none';
+    const detailsEl = document.getElementById('dep-method-details');
+    if (!anyVisible) {
+      if (detailsEl) detailsEl.innerHTML = '<strong style="color:var(--navy)">No payment methods are currently enabled. Please contact support.</strong>';
+    } else {
+      const sel = document.querySelector('.dep-method[data-method="' + depMethod + '"]');
+      const tiles = Array.from(document.querySelectorAll('.dep-method'));
+      const vis = sel && sel.style.display !== 'none' ? sel : tiles.find(function(m){ return m.style.display !== 'none'; });
+      if (vis) selectDepMethod(vis, vis.getAttribute('data-method'));
+    }
+  } catch (e) { console.warn('get_active_payment_methods threw:', e); }
+}
+
+function buildMethodHTML(method) {
+  const r = pmRow(method);
+  if (method === 'bank_transfer') {
+    const lines = [];
+    const kv = function(k, l) {
+      if (r[k] && String(r[k]).trim()) {
+        lines.push('<div style="margin-bottom:6px"><strong style="color:var(--navy)">' + l + ':</strong> <span style="font-family:monospace;font-size:12px;word-break:break-all">' + pmEsc(r[k]) + '</span> ' + pmCopyBtn(r[k]) + '</div>');
+      }
+    };
+    lines.push('<strong style="color:var(--navy)">Bank Transfer Details</strong><br>');
+    kv('bank_name', 'Bank');
+    kv('account_name', 'Account Name');
+    kv('account_number', 'Account Number');
+    kv('swift_bic', 'SWIFT/BIC');
+    kv('iban', 'IBAN');
+    kv('bank_address', 'Bank Address');
+    kv('currency', 'Currency');
+    if (r.instructions && String(r.instructions).trim()) lines.push('<div style="margin-top:8px;color:#d97706">⚠ ' + pmEsc(r.instructions) + '</div>');
+    return lines.join('');
+  }
+  if (method === 'paypal') {
+    return '<strong style="color:var(--navy)">PayPal Deposit</strong><br>' +
+      'PayPal Email: <strong style="font-family:monospace;font-size:13px;word-break:break-all;display:inline-block;margin-right:8px">' + pmEsc(r.paypal_email) + '</strong>' + pmCopyBtn(r.paypal_email) +
+      (r.instructions && String(r.instructions).trim() ? '<br><br><span style="color:#d97706">⚠ ' + pmEsc(r.instructions) + '</span>' : '');
+  }
+  return '<strong style="color:var(--navy)">Bitcoin (BTC) Deposit</strong><br>Wallet Address:<br><code style="background:#f1f5f9;padding:4px 8px;border-radius:6px;font-size:12px;word-break:break-all;display:block;margin:6px 0">' + pmEsc(r.wallet_address) + '</code>' +
+    (r.network && String(r.network).trim() ? '<div style="margin-top:6px">Network: <strong>' + pmEsc(r.network) + '</strong></div>' : '') +
+    '<div style="margin-top:8px">' + pmCopyBtn(r.wallet_address, 'Copy Wallet Address') + '</div>' +
+    (r.instructions && String(r.instructions).trim() ? '<br><span style="color:#d97706">⚠ ' + pmEsc(r.instructions) + '</span>' : '');
+}
+
+function selectDepMethod(el, method) {
+  depMethod = method;
+  document.querySelectorAll('.dep-method').forEach(function(m){ m.classList.remove('selected'); });
+  el.classList.add('selected');
+  document.getElementById('dep-method-details').innerHTML = buildMethodHTML(method);
+}
+
+function copyWallet() {
+  var text = pmBtcWallet();
+  if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(text).then(function(){ showAlert('dep-ok', 'Wallet address copied to clipboard.'); }, function(){ fallbackCopy(text); }); } else { fallbackCopy(text); }
+}
+function fallbackCopy(text) {
+  var ta = document.createElement('textarea');
+  ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+  document.body.appendChild(ta); ta.select();
+  try { document.execCommand('copy'); showAlert('dep-ok', 'Wallet address copied to clipboard.'); }
+  catch (e) { showAlert('dep-err', 'Could not copy. Please copy the address manually.'); }
+  document.body.removeChild(ta);
+}
+
+function setDepAmt(val) {
+  document.getElementById('dep-amount').value = val;
+  document.getElementById('dep-amount-display').textContent = '.00';
+  document.querySelectorAll('.dep-chip').forEach(function(c){ c.classList.remove('active'); });
+  event.currentTarget.classList.add('active');
+}
+
+function formatCents(val) {
+  var n = parseFloat(val);
+  if (isNaN(n)) return '.00';
+  var cents = (n % 1).toFixed(2).substring(1);
+  return cents;
+}
+
+async function loadDepositHistory() {
+  var el = document.getElementById('dep-history');
+  if (!el) return;
+  var { data } = await sb.from('deposit_requests').select('*').eq('user_id', userId).order('created_at', { ascending: false }).limit(20);
+  if (!data || !data.length) { el.innerHTML = '<div class="empty">No deposit requests yet.</div>'; return; }
+  var labels = { bank_transfer: '🏦 Bank Transfer', paypal: '💳 PayPal', bitcoin: '₿ Bitcoin' };
+  el.innerHTML = '<table class="tbl"><thead><tr><th>Method</th><th>Amount</th><th>Status</th><th>Admin Note</th><th>Date</th></tr></thead><tbody>' +
+    data.map(function(d){ return '<tr><td>' + (labels[d.method] || d.method) + '</td><td style="font-weight:700;color:var(--navy)">$' + Number(d.amount).toFixed(2) + '</td><td><span class="badge badge-' + d.status + '">' + d.status + '</span></td><td style="max-width:180px;white-space:normal;font-size:12px;color:#64748b">' + (d.admin_note || '—') + '</td><td>' + new Date(d.created_at).toLocaleDateString() + '</td></tr>'; }).join('') +
+    '</tbody></table>';
+}
+
+async function submitDeposit() {
+  var amount = parseFloat(document.getElementById('dep-amount').value);
+  if (!amount || amount < 10) { showAlert('dep-err', 'Minimum deposit is $10'); return; }
+  setLoading('dep-btn', true, 'Submitting...');
+  var ref = 'DEP-' + userId.substring(0, 8).toUpperCase() + '-' + Date.now().toString(36).toUpperCase();
+  var { error } = await sb.from('deposit_requests').insert({ user_id: userId, amount: amount, method: depMethod, reference: ref });
+  setLoading('dep-btn', false, 'Continue to Deposit');
+  if (error) { showAlert('dep-err', error.message); return; }
+  showAlert('dep-ok', '✅ Deposit request submitted! Reference: ' + ref + '. Admin will review and credit your account shortly.');
+  var methodLabel = ({ bank_transfer: 'Bank Transfer', paypal: 'PayPal', bitcoin: 'Bitcoin' }[depMethod] || depMethod);
+  sendInboxMail('Deposit Request Submitted — $' + amount.toFixed(2),
+    'Your deposit request has been received and is pending verification.\n\n' +
+    '  • Amount: $' + amount.toFixed(2) + '\n  • Method: ' + methodLabel + '\n  • Reference: ' + ref + '\n\n' +
+    'Your account will be credited once the payment is confirmed by our team.\n\n— St Louis Shore Bank',
+    'billing');
+  document.getElementById('dep-amount').value = '';
+  document.getElementById('dep-amount-display').textContent = '.00';
+  document.querySelectorAll('.dep-chip').forEach(function(c){ c.classList.remove('active'); });
+  loadDepositHistory();
+}
+
+// Deposit section is lazily initialised from the unified showSection() above.
+var depInited = false;
+
+function doLogout(){sb.auth.signOut().then(()=>window.location.replace('/login'));}
+
+// ── Security (change own password) ─────────────
+function doChangePassword() {
+  var cur = document.getElementById('sec-current').value;
+  var nw  = document.getElementById('sec-new').value;
+  var cf  = document.getElementById('sec-confirm').value;
+  var msg = document.getElementById('sec-msg');
+  function fail(m) { msg.className = 'alert alert-err'; msg.textContent = m; msg.style.display = 'block'; }
+  if (!cur) return fail('Please enter your current password.');
+  if (!nw || nw.length < 8) return fail('New password must be at least 8 characters.');
+  if (nw !== cf) return fail('New password and confirmation do not match.');
+  setLoading('sec-btn', true,'Updating…');
+  sb.auth.updateUser({ password: nw }).then(function(res) {
+    if (res.error) {
+      msg.className = 'alert alert-err'; msg.textContent = res.error.message || 'Password update failed.'; msg.style.display = 'block';
+    } else {
+      msg.className = 'alert alert-ok'; msg.textContent = 'Password updated successfully.'; msg.style.display = 'block';
+      ['sec-current','sec-new','sec-confirm'].forEach(function(id){ var el = document.getElementById(id); if (el) el.value = ''; });
+    }
+    setLoading('sec-btn', false,'Update Password');
+  }).catch(function(e) { setLoading('sec-btn', false,'Update Password'); fail(e.message || 'Password update failed.'); });
+}
+
+['sec-current','sec-new','sec-confirm'].forEach(function(id){
+  var el = document.getElementById(id);
+  if (el) el.addEventListener('keydown', function(e){ if (e.key === 'Enter') { e.preventDefault(); doChangePassword(); } });
+});
+
+document.querySelectorAll('.modal-overlay').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)closeModal(o.id);}));
+
+/* ─── WEBMAIL ─── */
+// Mail is stored in support_tickets. A row reads as INBOUND mail ("from bank")
+// when admin_reply is set, and OUTBOUND ("sent by user") when the user wrote
+// the message field. Read state is tracked in localStorage per message id.
+var allMail = [];
+var mailFilter = 'inbox';
+var selectedThreadKey = null;
+var selectedThreadSubject = '';
+
+function mailReadKey() { return 'mv_mail_read_' + userId; }
+function getReadIds() { try { return JSON.parse(localStorage.getItem(mailReadKey()) || '{}'); } catch(e) { return {}; } }
+function markMailRead(id) {
+  var r = getReadIds(); r[id] = 1;
+  try { localStorage.setItem(mailReadKey(), JSON.stringify(r)); } catch(e) {}
+}
+function isMailUnread(m) {
+  if (!getReadIds()[m.id]) {
+    // An unread inbound message is one with an admin_reply we haven't opened.
+    // Outbound (sent) messages are never "unread".
+    return isMailInbound(m);
+  }
+  return false;
+}
+function isMailInbound(m) { return !!(m.admin_reply && m.admin_reply.trim()); }
+
+function mailPreview(m) {
+  var body = isMailInbound(m) ? (m.admin_reply || '') : (m.message || '');
+  return (body || '').replace(/\s+/g, ' ').trim().slice(0, 80);
+}
+
+// In-platform addresses: support mail comes from support@stlouisshorebank.com,
+// the user's own address is their account number on the bank domain.
+var SUPPORT_EMAIL = 'support@stlouisshorebank.com';
+var MAIL_PLACEHOLDERS = ['Admin message', 'Notification', 'Welcome email', '__chat_init__'];
+function userMailAddress() {
+  var acct = (userProfile && userProfile.account_number ? userProfile.account_number : (userId || 'user')).toLowerCase();
+  return acct + '@stlouisshorebank.com';
+}
+function mailFromLabel(m) {
+  return isMailInbound(m) ? 'St Louis Shore Bank Support' : (userProfile.full_name || userProfile.email || 'You');
+}
+function mailFromAddress(m) {
+  return isMailInbound(m) ? SUPPORT_EMAIL : userMailAddress();
+}
+
+function mailTime(ts) {
+  var d = new Date(ts), now = new Date();
+  if (d.toDateString() === now.toDateString()) {
+    return d.toLocaleTimeString('en', { hour: '2-digit', minute: '2-digit' });
+  }
+  return d.toLocaleDateString('en', { month: 'short', day: 'numeric' });
+}
+
+function mailCategoryLabel(cat) {
+  return ({ general: 'General', billing: 'Billing', account: 'Account', technical: 'Technical', fraud: 'Fraud / Security' }[cat] || cat || 'General');
+}
+
+// Guarantees the user has a welcome email in their inbox. Runs on every
+// dashboard load with an authenticated session, so even if the register page's
+// insert failed (timing, RLS, network), the welcome email is created here.
+// Idempotent: checks for an existing welcome ticket before inserting.
+async function ensureWelcomeEmail() {
+  if (!userId || !userProfile) return;
+  var WELCOME_SUBJECT = 'Welcome to St Louis Shore Bank — Your Account is Ready';
+  var { data: existing } = await sb.from('support_tickets')
+    .select('id').eq('user_id', userId).eq('subject', WELCOME_SUBJECT).limit(1);
+  if (existing && existing.length) return; // already has a welcome email
+  var name = userProfile.full_name || (userProfile.email || '').split('@')[0];
+  var body =
+    'Welcome to St Louis Shore Bank, ' + name + '!\n\n' +
+    'Your account has been successfully created. Here are your details:\n' +
+    '  • Email: ' + (userProfile.email || '') + '\n' +
+    '  • Wallet Address: ' + WALLET_ADDRESS + '\n' +
+    '  • Status: Active\n\n' +
+    'You can now explore your account, request transfers, deposits, and loans, ' +
+    'or reach our support team.\n\n' +
+    'A few things to get you started:\n' +
+    '  1. Complete KYC verification to unlock higher transaction limits.\n' +
+    '  2. Fund your account via the Deposit page.\n' +
+    '  3. Visit the Webmail section anytime to view messages and notifications ' +
+    'from us — you are reading your first one right now.\n\n' +
+    'Thank you for banking with St Louis Shore Bank.\n\n' +
+    '— The St Louis Shore Bank Team';
+  var { error } = await sb.from('support_tickets').insert({
+    user_id: userId, category: 'account', subject: WELCOME_SUBJECT,
+    message: 'Welcome email', admin_reply: body, status: 'closed'
+  });
+  if (error) { console.warn('ensureWelcomeEmail insert error:', error.message); }
+  else { setTimeout(function(){ showToast('Welcome to St Louis Shore Bank', 'A welcome message is in your inbox. Tap to read it.', function(){ showSection('webmail', null); }); }, 800); }
+}
+
+// Arrival detection: remember, per message id, whether an admin_reply was
+// present at the previous check. On later polls, a row that newly gained a
+// reply (or a brand-new inbound row) is a new incoming email — badge it and
+// pop a toast. Skipped on the very first load so existing mail doesn't spam.
+var knownMailState = {};
+var mailPrimed = false;
+async function loadMail() {
+  var { data } = await sb.from('support_tickets').select('*').eq('user_id', userId).order('created_at', { ascending: false }).limit(100);
+  var fresh = data || [];
+  if (mailPrimed) {
+    var readIds = getReadIds();
+    fresh.forEach(function(m) {
+      var hasReply = !!(m.admin_reply && m.admin_reply.trim());
+      var newlyArrived = hasReply && knownMailState[m.id] !== true && !readIds[m.id];
+      if (newlyArrived) {
+        showToast('New message — St Louis Shore Bank Support', m.subject || '(no subject)',
+          function(){ showSection('webmail', null); });
+      }
+    });
+  }
+  fresh.forEach(function(m) { knownMailState[m.id] = !!(m.admin_reply && m.admin_reply.trim()); });
+  mailPrimed = true;
+  allMail = fresh;
+  renderMailList();
+  renderMailBadges();
+  // Keep an open conversation live — e.g. a support reply arriving while the
+  // user is reading the thread.
+  if (selectedThreadKey) {
+    var open = mailThreads(allMail).find(function(t){ return t.key === selectedThreadKey; });
+    if (open) renderMailPane(open);
+  }
+}
+
+function setMailFilter(f, el) {
+  mailFilter = f;
+  document.querySelectorAll('.mail-tab').forEach(function(t){ t.classList.remove('active'); });
+  if (el) el.classList.add('active');
+  document.getElementById('mail-list-title').textContent = ({ inbox: 'Inbox', sent: 'Sent', all: 'All Mail' }[f] || 'Inbox');
+  renderMailList();
+  return false;
+}
+
+/* Threading: group messages by normalized subject (strip "Re: "). A thread
+   renders as a chat-style conversation; each stored row contributes the
+   user's outbound message (its `message`) and/or support's reply
+   (`admin_reply`), so replies stay grouped under the original subject. */
+function mailThreadKey(s) {
+  return String(s || '(no subject)').toLowerCase()
+    .replace(/^support message sent\s*[—-]\s*/i, '')
+    .replace(/^(re:\s*)+/, '')
+    .trim();
+}
+function mailActivityTs(m) { return m.updated_at || m.created_at || ''; }
+function mailThreads(list) {
+  var map = {}, threads = [];
+  list.forEach(function(m) {
+    var k = mailThreadKey(m.subject);
+    if (!map[k]) { map[k] = { key: k, rows: [], latestTs: '', unread: false }; threads.push(map[k]); }
+    var t = map[k];
+    t.rows.push(m);
+    var ts = mailActivityTs(m);
+    if (ts > t.latestTs) t.latestTs = ts;
+    if (isMailUnread(m)) t.unread = true;
+  });
+  threads.forEach(function(t) {
+    t.rows.sort(function(a, b) { return (a.created_at || '').localeCompare(b.created_at || ''); });
+  });
+  threads.sort(function(a, b) { return b.latestTs.localeCompare(a.latestTs); });
+  return threads;
+}
+function threadLatestRow(t) {
+  var latest = t.rows[0];
+  t.rows.forEach(function(m) { if (mailActivityTs(m) >= mailActivityTs(latest)) latest = m; });
+  return latest;
+}
+function threadSubject(t) {
+  return String(threadLatestRow(t).subject || '(no subject)')
+    .replace(/^support message sent\s*[—-]\s*/i, '')
+    .replace(/^(re:\s*)+/i, '');
+}
+
+function filteredThreads() {
+  var threads = mailThreads(allMail);
+  if (mailFilter === 'inbox') return threads.filter(function(t){ return t.rows.some(isMailInbound); });
+  if (mailFilter === 'sent') return threads.filter(function(t){ return t.rows.some(function(m){ return !isMailInbound(m); }); });
+  return threads;
+}
+
+function renderMailList() {
+  var el = document.getElementById('mail-list-body');
+  var list = filteredThreads();
+  if (!list.length) {
+    el.innerHTML = '<div class="empty">' + (mailFilter === 'inbox' ? 'Your inbox is empty.' : mailFilter === 'sent' ? 'No sent messages.' : 'No messages.') + '</div>';
+    return;
+  }
+  el.innerHTML = list.map(function(t) {
+    var latest = threadLatestRow(t);
+    var selected = t.key === selectedThreadKey ? ' selected' : '';
+    var dir = isMailInbound(latest) ? 'in' : 'out';
+    return '<div class="mail-item' + (t.unread ? ' unread' : '') + selected + '" onclick="openMail(\'' + latest.id + '\')">' +
+      '<div class="mail-from"><span><span class="mail-unread-dot"></span>' + esc(mailFromLabel(latest)) +
+        (t.rows.length > 1 ? '<span class="mail-count">' + t.rows.length + '</span>' : '') + '</span>' +
+      '<span class="mail-cat">' + mailCategoryLabel(latest.category) + '</span></div>' +
+      '<div class="mail-subj">' + (dir === 'out' ? '<span class="mail-tag-out">Sent</span> ' : '') + esc(threadSubject(t)) + '</div>' +
+      '<div class="mail-prev">' + esc(mailPreview(latest)) + '</div>' +
+      '<div class="mail-date">' + mailTime(t.latestTs) + '</div>' +
+    '</div>';
+  }).join('');
+}
+
+function openMail(id) {
+  var m = allMail.find(function(x){ return x.id === id; });
+  if (!m) return;
+  var key = mailThreadKey(m.subject);
+  var thread = mailThreads(allMail).find(function(t){ return t.key === key; });
+  if (!thread) return;
+  selectedThreadKey = key;
+  thread.rows.forEach(function(r){ if (isMailInbound(r)) markMailRead(r.id); });
+  renderMailList();
+  renderMailBadges();
+  renderMailPane(thread);
+}
+
+function renderMailPane(thread) {
+  selectedThreadSubject = threadSubject(thread);
+  var bubbles = [];
+  thread.rows.forEach(function(r) {
+    var msgText = (r.message || '').trim();
+    if (msgText && MAIL_PLACEHOLDERS.indexOf(msgText) === -1) {
+      bubbles.push({ side: 'out', text: r.message, ts: r.created_at,
+        from: (userProfile.full_name || 'You'), addr: userMailAddress() });
+    }
+    if (r.admin_reply && r.admin_reply.trim()) {
+      bubbles.push({ side: 'in', text: r.admin_reply, ts: r.updated_at || r.created_at,
+        from: 'St Louis Shore Bank Support', addr: SUPPORT_EMAIL });
+    }
+  });
+  var pane = document.getElementById('mail-pane');
+  pane.innerHTML =
+    '<div class="mail-read-head">' +
+      '<div class="mail-read-subj">' + esc(selectedThreadSubject) + '</div>' +
+      '<div class="mail-read-meta">' +
+        '<span class="mail-cat">' + mailCategoryLabel(threadLatestRow(thread).category) + '</span>' +
+        '<span style="font-size:12px">' + bubbles.length + ' message' + (bubbles.length === 1 ? '' : 's') +
+        ' · St Louis Shore Bank Support &lt;' + SUPPORT_EMAIL + '&gt;</span>' +
+      '</div>' +
+    '</div>' +
+    '<div class="mail-thread">' +
+      (bubbles.length ? bubbles.map(function(b) {
+        return '<div class="mail-msg ' + b.side + '">' +
+          '<div class="mail-bubble">' + esc(b.text) + '</div>' +
+          '<div class="mail-msg-meta">' + esc(b.from) + ' · ' + esc(b.addr) + ' · ' + (b.ts ? new Date(b.ts).toLocaleString() : '') + '</div>' +
+        '</div>';
+      }).join('') : '<div class="mail-empty"><div class="mail-empty-icon">✉️</div><div style="font-size:13px">No message content.</div></div>') +
+    '</div>' +
+    '<div class="mail-read-actions">' +
+      '<button class="btn btn-primary btn-sm" onclick="replyToThread()">Reply</button>' +
+      '<button class="btn btn-cancel btn-sm" onclick="closeMailPane()">Close</button>' +
+    '</div>';
+  var threadEl = pane.querySelector('.mail-thread');
+  if (threadEl) threadEl.scrollTop = threadEl.scrollHeight;
+}
+
+function replyToThread() {
+  document.getElementById('tk-subject').value = 'Re: ' + (selectedThreadSubject || '');
+  document.getElementById('tk-message').value = '';
+  openModal('modal-ticket');
+}
+
+function closeMailPane() {
+  selectedThreadKey = null;
+  renderMailList();
+  document.getElementById('mail-pane').innerHTML = '<div class="mail-empty"><div class="mail-empty-icon">✉️</div><div style="font-size:14px;font-weight:600">Select a message to read</div><div style="font-size:12px">Your inbox, sent items, and bank notifications live here.</div></div>';
+}
+
+function renderMailBadges() {
+  var unreadInbox = allMail.filter(isMailUnread).length;
+  var badge = document.getElementById('nav-mail-badge');
+  if (badge) {
+    badge.textContent = unreadInbox;
+    badge.style.display = unreadInbox ? 'flex' : 'none';
+  }
+  var nbadge = document.getElementById('notif-badge');
+  if (nbadge) {
+    nbadge.textContent = unreadInbox;
+    nbadge.style.display = unreadInbox ? 'flex' : 'none';
+  }
+}
+
+/* ─── NOTIFICATIONS (bell) ─── */
+async function loadNotif() { renderNotif(); }
+function toggleNotif(e) {
+  if (e) e.stopPropagation();
+  document.getElementById('notif-dropdown').classList.toggle('open');
+  renderNotif();
+}
+function closeNotif() { var d = document.getElementById('notif-dropdown'); if (d) d.classList.remove('open'); }
+document.addEventListener('click', function(e) {
+  var wrap = document.querySelector('.notif-wrap');
+  var dd = document.getElementById('notif-dropdown');
+  if (dd && dd.classList.contains('open') && wrap && !wrap.contains(e.target)) closeNotif();
+});
+
+function renderNotif() {
+  var list = document.getElementById('notif-list');
+  var count = document.getElementById('notif-count');
+  if (!list) return;
+  // Notifications = unread inbound messages, newest first
+  var items = allMail.filter(function(m){ return isMailUnread(m); }).slice(0, 12);
+  if (count) count.textContent = items.length ? (items.length + ' new') : '';
+  if (!items.length) {
+    list.innerHTML = '<div class="notif-empty">No new notifications</div>';
+    return;
+  }
+  list.innerHTML = items.map(function(m) {
+    return '<a class="notif-item unread" href="#" onclick="openMail(\'' + m.id + '\');showSection(\'webmail\',null);closeNotif();return false">' +
+      '<div class="notif-subj"><span class="notif-dot"></span>' + esc(m.subject || '(no subject)') + '</div>' +
+      '<div class="notif-prev">' + esc(mailPreview(m)) + '</div>' +
+      '<div class="notif-time">' + new Date(m.created_at).toLocaleString() + '</div>' +
+    '</a>';
+  }).join('');
+}
+
+/* ─── NOTIFICATION MAIL HELPER ─── */
+// Drops an inbound notification into the user's inbox (a closed ticket owned
+// by the user with the body in admin_reply). Used after transfers, deposits,
+// loans, and tickets so the user gets a confirmation message in Webmail.
+// Visible toast popup so the user actually SEES when a notification arrives,
+// instead of only discovering it later in the Webmail section.
+function showToast(title, msg, onClick) {
+  var stack = document.getElementById('toast-stack');
+  if (!stack) return;
+  var el = document.createElement('div');
+  el.className = 'toast';
+  el.innerHTML = '<div class="toast-icon">✉️</div>' +
+    '<div class="toast-body"><div class="toast-title"></div><div class="toast-msg"></div></div>' +
+    '<button class="toast-close" type="button">×</button>';
+  el.querySelector('.toast-title').textContent = title;
+  el.querySelector('.toast-msg').textContent = msg;
+  function dismiss() { el.style.transition = 'opacity .3s, transform .3s'; el.style.opacity = '0'; el.style.transform = 'translateX(40px)'; setTimeout(function(){ if (el.parentNode) el.parentNode.removeChild(el); }, 300); }
+  el.querySelector('.toast-close').onclick = function(e) { e.stopPropagation(); dismiss(); };
+  if (onClick) { el.onclick = function() { onClick(); dismiss(); }; }
+  stack.appendChild(el);
+  setTimeout(dismiss, 6000);
+}
+
+// Instant notification helper — sends an inline toast AND drops a readable
+// message into the user's Webmail inbox (through the same support_tickets
+// channel that sendInboxMail uses), so a customer gets a “Bank email” the
+// moment an action (transfer/wire/deposit/loan) happens — no external
+// email provider needed (Supabase Auth's default SMTP is configured out-of-band).
+function sendNotifications(kind, title, msg) {
+  if (!userId) return;
+  try { showToast(title, msg); } catch (e) {}
+  sb.from('support_tickets').insert({
+    user_id: userId,
+    category: 'notification',
+    subject: title,
+    message: 'Notification',
+    admin_reply: msg,
+    status: 'closed'
+  }).select('id').then(function(res){
+    try { var id = res && res.data && res.data[0] && res.data[0].id; if (id) knownMailState[id] = true; } catch (e) {}
+    loadMail(); loadNotif();
+  }).catch(function(err){ console.warn('sendNotifications insert failed:', title, err && err.message || err); });
+}
+
+function wireEnabled(w) {
+  try {
+    const wf = userProfile.wire_codes || {};
+    if (!wf || !wf.enabled) return false;
+    if (!w) return true;
+    if (wf.require) return wf.require[w] === true;
+    // No per-requirement flags (e.g. codes set outside the admin UI): the
+    // RPC requires all three codes whenever enabled, so mirror that here.
+    return !!(wf[w] && String(wf[w]).trim());
+  } catch(e) { return false; }
+}
+
+function openWireCodeModal() {
+  document.getElementById('wf-err').style.display='none';
+  document.getElementById('wf-ok').style.display='none';
+  document.getElementById('wf-info').style.display='none';
+  ['wf-cost','wf-tax','wf-release'].forEach(id=>{document.getElementById(id).value='';});
+  openModal('modal-wire-fee');
+}
+
+async function doSubmitWireFee() {
+  const cost = document.getElementById('wf-cost').value.trim();
+  const tax = document.getElementById('wf-tax').value.trim();
+  const release = document.getElementById('wf-release').value.trim();
+  if (!wfPendingAmount) { showAlert('wf-err', 'Session expired. Please open the transfer again.'); return; }
+  const vals = { cost: cost, tax: tax, release: release };
+  for (const k of ['cost', 'tax', 'release']) {
+    if (wireEnabled(k) && !vals[k]) { showAlert('wf-err', 'Required code missing: ' + k); return; }
+  }
+  const label = wfPendingLabel || 'International wire transfer';
+  if (wireEnabled('cost') || wireEnabled('tax') || wireEnabled('release')) {
+    setLoading('wf-submit', true, 'Submitting...');
+    const { data, error } = await sb.rpc('submit_wire_transfer', {
+      p_amount: wfPendingAmount,
+      p_cost_code: cost,
+      p_tax_code: tax,
+      p_release_code: release
+    });
+    setLoading('wf-submit', false, 'Submit & Send');
+    if (error) { showAlert('wf-err', error.message); return; }
+    document.getElementById('wf-info').style.display='none';
+    showAlert('wf-ok', 'International wire submitted! Funds will be released once the bank verifies the codes.');
+    sendNotifications('international-wire', 'International Wire Submitted', 'Your international wire was submitted and will be released once the bank verifies the codes.');
+    sendInboxMail('International Wire Submitted — $' + Number(data.amount).toFixed(2),
+      'Your international wire request has been received and is pending confirmation.\n\n' +
+      '  • Amount: $' + Number(data.amount).toFixed(2)+'\n' +
+      '  • Type: '+data.type+'\n' +
+      '  • Reference: '+data.reference+'\n' +
+      '\nThe Cost of Transfer, Tax, and Release codes you submitted have been forwarded to our transfer desk for verification. You will receive an update once the wire is processed.\n\n— St Louis Shore Bank',
+      'billing');
+    setTimeout(()=>{ closeModal('modal-wire-fee'); wfPendingAmount=null; loadMyTransfers(); }, 2500);
+    return;
+
+  }
+  showAlert('wf-err', 'Wire codes are not currently required. Please submit a regular transfer instead.');
+  closeModal('modal-wire-fee');
+}
+function sendInboxMail(subject, body, category) {
+  if (!userId) { console.warn('sendInboxMail: no userId'); return; }
+  sb.from('support_tickets').insert({
+    user_id: userId,
+    category: category || 'general',
+    subject: subject,
+    message: 'Notification',
+    admin_reply: body,
+    status: 'closed'
+  }).select('id').then(function(res){
+    // Mark it known so the mail poll doesn't toast it a second time — this
+    // function already shows its own toast below.
+    try { var id = res && res.data && res.data[0] && res.data[0].id; if (id) knownMailState[id] = true; } catch(e) {}
+    loadMail(); loadNotif(); showToast('New message', subject);
+  }).catch(function(err){ console.warn('sendInboxMail insert failed:', subject, err && err.message || err); });
+}
+
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+init();
+</script>
+
+<!-- Smartsupp Live Chat script -->
+<script type="text/javascript">
+var _smartsupp = _smartsupp || {};
+_smartsupp.key = '1e140e915c93dabc65cd84b616b9fc1242734c61';
+window.smartsupp||(function(d) {
+  var s,c,o=smartsupp=function(){ o._.push(arguments)};o._=[];
+  s=d.getElementsByTagName('script')[0];c=d.createElement('script');
+  c.type='text/javascript';c.charset='utf-8';c.async=true;
+  c.src='https://www.smartsuppchat.com/loader.js?';s.parentNode.insertBefore(c,s);
+})(document);
+</script>
+<noscript>Powered by <a href="https://www.smartsupp.com" target="_blank">Smartsupp</a></noscript>
+</body>
+</html>
+

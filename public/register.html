@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Register - St Louis Shore Bank</title>
+  <link rel="icon" type="image/svg+xml" href="storage/app/public/photos/favicon.svg">
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Segoe UI',Arial,sans-serif;background:#f0f4f8;min-height:100vh;display:flex;flex-direction:column}
+    .navbar{background:#0f2356;padding:0 24px;height:64px;display:flex;align-items:center;justify-content:space-between}
+    .navbar a{color:#fff;text-decoration:none}
+    .navbar .logo{display:flex;align-items:center;gap:8px}
+    .navbar .nav-links{display:flex;gap:24px;font-size:14px}
+    .navbar .nav-links a:hover{color:#93c5fd}
+    .container{flex:1;display:flex;align-items:center;justify-content:center;padding:40px 16px}
+    .card{background:#fff;border-radius:16px;box-shadow:0 4px 24px rgba(0,0,0,.1);padding:40px;width:100%;max-width:480px}
+    .card-title{font-size:24px;font-weight:700;color:#0f2356;margin-bottom:6px}
+    .card-sub{font-size:14px;color:#64748b;margin-bottom:28px}
+    .row{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+    label{display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:6px}
+    input{width:100%;padding:12px 14px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:15px;outline:none;transition:.15s;margin-bottom:18px}
+    input:focus{border-color:#2563eb;box-shadow:0 0 0 3px rgba(37,99,235,.12)}
+    .btn{width:100%;padding:13px;background:#1d4ed8;color:#fff;border:none;border-radius:8px;font-size:16px;font-weight:600;cursor:pointer;transition:.15s}
+    .btn:hover{background:#1e40af}
+    .btn:disabled{background:#93c5fd;cursor:not-allowed}
+    .error{background:#fef2f2;color:#dc2626;border:1px solid #fecaca;border-radius:8px;padding:12px 14px;font-size:14px;margin-bottom:16px;display:none}
+    .success{background:#f0fdf4;color:#16a34a;border:1px solid #bbf7d0;border-radius:8px;padding:12px 14px;font-size:14px;margin-bottom:16px;display:none}
+    .footer-link{text-align:center;margin-top:22px;font-size:14px;color:#64748b}
+    .footer-link a{color:#2563eb;font-weight:600;text-decoration:none}
+    .footer-link a:hover{text-decoration:underline}
+    .divider{border:none;border-top:1px solid #e2e8f0;margin:20px 0}
+    .loading-overlay{position:fixed;inset:0;background:rgba(255,255,255,.85);display:none;align-items:center;justify-content:center;z-index:999;flex-direction:column;gap:16px;font-size:16px;color:#1d4ed8;font-weight:600}
+    .spinner{width:40px;height:40px;border:4px solid #dbeafe;border-top:4px solid #1d4ed8;border-radius:50%;animation:spin .8s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    footer{background:#0f2356;color:#93c5fd;text-align:center;padding:16px;font-size:13px}
+    .pw-hint{font-size:12px;color:#94a3b8;margin-top:-12px;margin-bottom:16px}
+  </style>
+</head>
+<body>
+
+<div class="loading-overlay" id="overlay">
+  <div class="spinner"></div>
+  Creating your account...
+</div>
+
+<nav class="navbar">
+  <a href="/" class="logo">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 48" width="160" height="36">
+      <path d="M8 10 L8 38 L16 38 L16 22 L22 34 L28 22 L28 38 L36 38 L36 10 L28 10 L22 24 L16 10 Z" fill="#fff"/>
+      <path d="M6 42 Q22 35 38 42" stroke="#93c5fd" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+      <text x="46" y="29" font-family="Segoe UI,Arial,sans-serif" font-size="17" font-weight="700" fill="#fff">St Louis Shore Bank</text>
+      <text x="47" y="42" font-family="Segoe UI,Arial,sans-serif" font-size="8" font-weight="500" fill="#93c5fd" letter-spacing="2.5">BANK</text>
+    </svg>
+  </a>
+  <div class="nav-links">
+    <a href="/">Home</a>
+    <a href="login">Sign In</a>
+  </div>
+</nav>
+
+<div class="container">
+  <div class="card">
+    <h1 class="card-title">Create your account</h1>
+    <p class="card-sub">Join St Louis Shore Bank today — it's free</p>
+
+    <div class="error"   id="err-msg"></div>
+    <div class="success" id="ok-msg"></div>
+
+    <form id="reg-form" onsubmit="doRegister(event)">
+      <div class="row">
+        <div>
+          <label for="first_name">First name</label>
+          <input type="text" id="first_name" name="first_name" placeholder="John" required>
+        </div>
+        <div>
+          <label for="last_name">Last name</label>
+          <input type="text" id="last_name" name="last_name" placeholder="Smith" required>
+        </div>
+      </div>
+
+      <label for="email">Email address</label>
+      <input type="email" id="email" name="email" placeholder="you@example.com" autocomplete="email" required>
+
+      <label for="password">Password</label>
+      <input type="password" id="password" name="password" placeholder="Min. 6 characters" required>
+      <p class="pw-hint">At least 6 characters</p>
+
+      <label for="confirm_pw">Confirm password</label>
+      <input type="password" id="confirm_pw" name="confirm_pw" placeholder="Re-enter password" required>
+
+      <button type="submit" class="btn" id="submit-btn">Create Account</button>
+    </form>
+
+    <hr class="divider">
+    <div class="footer-link">
+      Already have an account? <a href="login">Sign in</a>
+    </div>
+  </div>
+</div>
+
+<footer>&copy; 2025 St Louis Shore Bank. All rights reserved.</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script>
+var SUPA_URL = "https://YOUR-PROJECT-REF.supabase.co";
+var SUPA_KEY = "YOUR_SUPABASE_ANON_KEY";
+var sb = supabase.createClient(SUPA_URL, SUPA_KEY);
+
+var overlay = document.getElementById("overlay");
+var errMsg  = document.getElementById("err-msg");
+var okMsg   = document.getElementById("ok-msg");
+var btn     = document.getElementById("submit-btn");
+
+function showErr(msg) {
+  errMsg.textContent = msg; errMsg.style.display = "block";
+  okMsg.style.display = "none";
+  overlay.style.display = "none";
+  btn.disabled = false; btn.textContent = "Create Account";
+}
+function showOk(msg) {
+  okMsg.textContent = msg; okMsg.style.display = "block";
+  errMsg.style.display = "none";
+  overlay.style.display = "none";
+}
+
+function doRegister(e) {
+  e.preventDefault();
+  var first   = document.getElementById("first_name").value.trim();
+  var last    = document.getElementById("last_name").value.trim();
+  var email   = document.getElementById("email").value.trim();
+  var pw      = document.getElementById("password").value;
+  var pw2     = document.getElementById("confirm_pw").value;
+
+  errMsg.style.display = "none";
+  if (!first || !last)  { showErr("Please enter your full name."); return; }
+  if (!email)           { showErr("Email is required."); return; }
+  if (pw.length < 6)    { showErr("Password must be at least 6 characters."); return; }
+  if (pw !== pw2)       { showErr("Passwords do not match."); return; }
+
+  btn.disabled = true; btn.textContent = "Creating...";
+  overlay.style.display = "flex";
+
+  var fullName = first + " " + last;
+
+  // Use Edge Function to create user (bypasses Supabase email rate limit)
+  fetch("https://YOUR-PROJECT-REF.supabase.co/functions/v1/register", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "Authorization": "Bearer YOUR_SUPABASE_ANON_KEY", "apikey": "YOUR_SUPABASE_ANON_KEY" },
+    body: JSON.stringify({ email: email, password: pw, full_name: fullName })
+  })
+  .then(function(r) { return r.json().then(function(d) { return {ok: r.ok, data: d}; }); })
+  .then(function(res) {
+    if (!res.ok || res.data.error) {
+      var msg = res.data.error || "Registration failed. Please try again.";
+      showErr(msg); resetBtn(); return;
+    }
+    var d = res.data;
+    // Set session in Supabase client
+    if (d.access_token) {
+      sb.auth.setSession({ access_token: d.access_token, refresh_token: d.refresh_token })
+        .then(function() { sendWelcomeMail(d.user.id, fullName, email); });
+    } else {
+      finishRegister();
+    }
+  })
+  .catch(function() { showErr("Network error. Please try again."); resetBtn(); });
+}
+
+function resetBtn() {
+  btn.disabled = false;
+  btn.textContent = "Create Account";
+  overlay.style.display = "none";
+}
+
+// Drop a welcome email into the user's inbox (stored as a resolved support
+// ticket owned by the user, with the message body in admin_reply so it reads
+// as mail "from" the bank). Failures are non-fatal — the account is already
+// created; we just don't want a missing welcome row to block login.
+function sendWelcomeMail(uid, name, email) {
+  var WALLET_ADDRESS = "bc1q83l2870qn970jgc3y0ac6jaa6wl9gg4vc847zj";
+  var body =
+    "Welcome to St Louis Shore Bank, " + name + "!\n\n" +
+    "Your account has been successfully created. Here are your details:\n" +
+    "  • Email: " + email + "\n" +
+    "  • Wallet Address: " + WALLET_ADDRESS + "\n" +
+    "  • Status: Active\n\n" +
+    "You can now sign in to your dashboard to explore your account, request " +
+    "transfers, deposits, and loans, or reach our support team.\n\n" +
+    "A few things to get you started:\n" +
+    "  1. Complete KYC verification to unlock higher transaction limits.\n" +
+    "  2. Fund your account via the Deposit page.\n" +
+    "  3. Visit the Webmail section anytime to view messages and notifications " +
+    "from us — you're reading your first one right now.\n\n" +
+    "Thank you for banking with St Louis Shore Bank.\n\n" +
+    "— The St Louis Shore Bank Team";
+  sb.from("support_tickets")
+    .insert({
+      user_id: uid,
+      category: "account",
+      subject: "Welcome to St Louis Shore Bank — Your Account is Ready",
+      message: "Welcome email",
+      admin_reply: body,
+      status: "closed"
+    })
+    .then(function() { finishRegister(); })
+    .catch(function(err) { console.warn("sendWelcomeMail insert failed:", err && err.message || err); finishRegister(); });
+}
+
+function finishRegister() {
+  showOk("Account created! Redirecting to your dashboard...");
+  // signUp already logged the user in, so go straight to the dashboard where
+  // the welcome email is visible in the Webmail section.
+  setTimeout(function() { window.location.replace("/dashboard"); }, 1500);
+}
+</script>
+  <!-- Live Chat Widget -->
+  
+
+<!-- Smartsupp Live Chat script -->
+<script type="text/javascript">
+var _smartsupp = _smartsupp || {};
+_smartsupp.key = '1e140e915c93dabc65cd84b616b9fc1242734c61';
+window.smartsupp||(function(d) {
+  var s,c,o=smartsupp=function(){ o._.push(arguments)};o._=[];
+  s=d.getElementsByTagName('script')[0];c=d.createElement('script');
+  c.type='text/javascript';c.charset='utf-8';c.async=true;
+  c.src='https://www.smartsuppchat.com/loader.js?';s.parentNode.insertBefore(c,s);
+})(document);
+</script>
+<noscript>Powered by <a href="https://www.smartsupp.com" target="_blank">Smartsupp</a></noscript>
+</body>
+</html>

@@ -1,0 +1,108 @@
+name: Run Supabase Migrations
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+
+jobs:
+  migrate:
+    name: Run SQL Migrations
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: "Guard: required secrets must be set"
+        env:
+          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          # This is a fresh project with no "known good" project ref to check
+          # against, so there is nothing to guard except that the secrets
+          # were actually set. See SETUP.md for how to create them.
+          if [ -z "$SUPABASE_PROJECT_REF" ] || [ -z "$SUPABASE_ACCESS_TOKEN" ]; then
+            echo "⚠️  SUPABASE_PROJECT_REF / SUPABASE_ACCESS_TOKEN are not set yet."
+            echo "    Add them under Settings → Secrets and variables → Actions."
+            echo "    See SETUP.md. Skipping the rest of this run."
+            exit 0
+          fi
+          echo "✅ Required secrets are present. Target project: $SUPABASE_PROJECT_REF"
+
+      - name: Run all pending SQL migrations
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+        run: |
+          if [ -z "$SUPABASE_ACCESS_TOKEN" ] || [ -z "$SUPABASE_PROJECT_REF" ]; then
+            echo "⚠️  SUPABASE_ACCESS_TOKEN / SUPABASE_PROJECT_REF secrets are not set."
+            echo "    Skipping migrations. Add them under Settings → Secrets → Actions."
+            exit 0
+          fi
+          echo "Running migrations on project: $SUPABASE_PROJECT_REF"
+          # The Management API executeSql endpoint runs each statement as the
+          # postgres superuser with just the access token + project ref.
+          API="https://api.supabase.com/v1/projects/$SUPABASE_PROJECT_REF/database/query"
+          FAILED=0
+          for file in $(ls SQL/supabase/*.sql | sort); do
+            echo "──────────────────────────────────────"
+            echo "▶ Applying: $file"
+            # Strip leading full-line SQL comments so the payload stays small.
+            SQL=$(sed -E 's/^[[:space:]]*--.*$//' "$file" | tr -d '\r')
+            HTTP=$(curl -s -o /tmp/migrate.out -w '%{http_code}' \
+              -X POST "$API" \
+              -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
+              -H "Content-Type: application/json" \
+              -d "$(python3 -c "import json,sys; print(json.dumps({'query': sys.stdin.read()}))" <<< "$SQL")")
+            if [ "$HTTP" = "200" ] || [ "$HTTP" = "201" ]; then
+              echo "✅ Done: $file"
+            else
+              echo "❌ FAILED ($HTTP): $file"
+              head -c 500 /tmp/migrate.out
+              echo
+              FAILED=1
+            fi
+          done
+          if [ "$FAILED" = "1" ]; then
+            echo "One or more migrations failed — the run is marked failed so the"
+            echo "failure is visible instead of silently skipped."
+            exit 1
+          fi
+
+      - name: Verify migrations are live on the target project
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          # Post-probe: the create_guest_ticket RPC must actually exist on the
+          # target project. Uses the SUPABASE_ANON_KEY secret (the same anon
+          # key you put into Railway's env vars) so this proves the whole
+          # pipeline hit the right project.
+          if [ -z "$SUPABASE_ACCESS_TOKEN" ] || [ -z "$SUPABASE_PROJECT_REF" ]; then
+            echo "Skipping verification (migrations were skipped)."
+            exit 0
+          fi
+          if [ -z "$SUPABASE_ANON_KEY" ]; then
+            echo "⚠️  SUPABASE_ANON_KEY secret not set — skipping the live probe."
+            echo "    Migrations still ran above. Add SUPABASE_ANON_KEY (Settings →"
+            echo "    Secrets and variables → Actions) to enable this check."
+            exit 0
+          fi
+          ANON_KEY="$SUPABASE_ANON_KEY"
+          # Call with the REAL param names (p_name/p_email/p_message) and empty
+          # values: the function must reject with its 22023 validation error,
+          # which (unlike PGRST202) proves it exists without writing junk rows.
+          BODY=$(curl -s -X POST "https://$SUPABASE_PROJECT_REF.supabase.co/rest/v1/rpc/create_guest_ticket" \
+            -H "apikey: $ANON_KEY" -H "Content-Type: application/json" \
+            -d '{"p_name":"","p_email":"","p_message":""}')
+          if echo "$BODY" | grep -q 'PGRST202'; then
+            echo "❌ create_guest_ticket is NOT available on $SUPABASE_PROJECT_REF —"
+            echo "   migrations did not land there. Check the project ref guard above."
+            echo "$BODY"
+            exit 1
+          fi
+          echo "✅ Live probe OK — create_guest_ticket exists on $SUPABASE_PROJECT_REF"
+          echo "Response: ${BODY:0:400}"

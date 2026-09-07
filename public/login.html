@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login - St Louis Shore Bank</title>
+  <link rel="icon" type="image/svg+xml" href="storage/app/public/photos/favicon.svg">
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Segoe UI',Arial,sans-serif;background:#f0f4f8;min-height:100vh;display:flex;flex-direction:column}
+    /* Navbar */
+    .navbar{background:#0f2356;padding:0 24px;height:64px;display:flex;align-items:center;justify-content:space-between}
+    .navbar a{color:#fff;text-decoration:none}
+    .navbar .logo{display:flex;align-items:center;gap:8px}
+    .navbar .nav-links{display:flex;gap:24px;font-size:14px}
+    .navbar .nav-links a:hover{color:#93c5fd}
+    /* Card */
+    .container{flex:1;display:flex;align-items:center;justify-content:center;padding:40px 16px}
+    .card{background:#fff;border-radius:16px;box-shadow:0 4px 24px rgba(0,0,0,.1);padding:40px;width:100%;max-width:440px}
+    .card-title{font-size:24px;font-weight:700;color:#0f2356;margin-bottom:6px}
+    .card-sub{font-size:14px;color:#64748b;margin-bottom:28px}
+    label{display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:6px}
+    input[type=email],input[type=password],input[type=text]{width:100%;padding:12px 14px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:15px;outline:none;transition:.15s;margin-bottom:18px}
+    input:focus{border-color:#2563eb;box-shadow:0 0 0 3px rgba(37,99,235,.12)}
+    .btn{width:100%;padding:13px;background:#1d4ed8;color:#fff;border:none;border-radius:8px;font-size:16px;font-weight:600;cursor:pointer;transition:.15s}
+    .btn:hover{background:#1e40af}
+    .btn:disabled{background:#93c5fd;cursor:not-allowed}
+    .error{background:#fef2f2;color:#dc2626;border:1px solid #fecaca;border-radius:8px;padding:12px 14px;font-size:14px;margin-bottom:16px;display:none}
+    .footer-link{text-align:center;margin-top:22px;font-size:14px;color:#64748b}
+    .footer-link a{color:#2563eb;font-weight:600;text-decoration:none}
+    .footer-link a:hover{text-decoration:underline}
+    .divider{border:none;border-top:1px solid #e2e8f0;margin:20px 0}
+    .loading-overlay{position:fixed;inset:0;background:rgba(255,255,255,.85);display:none;align-items:center;justify-content:center;z-index:999;flex-direction:column;gap:16px;font-size:16px;color:#1d4ed8;font-weight:600}
+    .spinner{width:40px;height:40px;border:4px solid #dbeafe;border-top:4px solid #1d4ed8;border-radius:50%;animation:spin .8s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    footer{background:#0f2356;color:#93c5fd;text-align:center;padding:16px;font-size:13px}
+  </style>
+</head>
+<body>
+
+<div class="loading-overlay" id="overlay">
+  <div class="spinner"></div>
+  Signing in...
+</div>
+
+<nav class="navbar">
+  <a href="/" class="logo">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 48" width="160" height="36">
+      <path d="M8 10 L8 38 L16 38 L16 22 L22 34 L28 22 L28 38 L36 38 L36 10 L28 10 L22 24 L16 10 Z" fill="#fff"/>
+      <path d="M6 42 Q22 35 38 42" stroke="#93c5fd" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+      <text x="46" y="29" font-family="Segoe UI,Arial,sans-serif" font-size="17" font-weight="700" fill="#fff">St Louis Shore Bank</text>
+      <text x="47" y="42" font-family="Segoe UI,Arial,sans-serif" font-size="8" font-weight="500" fill="#93c5fd" letter-spacing="2.5">BANK</text>
+    </svg>
+  </a>
+  <div class="nav-links">
+    <a href="/">Home</a>
+    <a href="register">Register</a>
+  </div>
+</nav>
+
+<div class="container">
+  <div class="card">
+    <h1 class="card-title">Welcome back</h1>
+    <p class="card-sub">Sign in to your St Louis Shore Bank account</p>
+
+    <div class="error" id="err-msg"></div>
+
+    <form id="login-form" onsubmit="doLogin(event)">
+      <label for="email">Email address</label>
+      <input type="email" id="email" name="email" placeholder="you@example.com" autocomplete="email" required>
+
+      <label for="password">Password</label>
+      <input type="password" id="password" name="password" placeholder="••••••••" autocomplete="current-password" required>
+      <div style="text-align:right;margin-top:-10px;margin-bottom:12px">
+        <a href="forgot-password" style="font-size:12px;color:#2563eb;text-decoration:none;font-weight:600">Forgot password?</a>
+      </div>
+
+      <button type="submit" class="btn" id="submit-btn">Sign In</button>
+    </form>
+
+    <hr class="divider">
+    <div class="footer-link">
+      Don't have an account? <a href="register">Create one</a>
+    </div>
+  </div>
+</div>
+
+<footer>&copy; 2025 St Louis Shore Bank. All rights reserved.</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script>
+var SUPA_URL = "https://YOUR-PROJECT-REF.supabase.co";
+var SUPA_KEY = "YOUR_SUPABASE_ANON_KEY";
+var sb = supabase.createClient(SUPA_URL, SUPA_KEY);
+
+var overlay = document.getElementById("overlay");
+var errMsg  = document.getElementById("err-msg");
+var btn     = document.getElementById("submit-btn");
+
+function showErr(msg) {
+  errMsg.textContent = msg;
+  errMsg.style.display = "block";
+  overlay.style.display = "none";
+  btn.disabled = false;
+  btn.textContent = "Sign In";
+}
+
+// Redirect an authenticated user to their landing page based on role.
+function routeByProfile(userId, fallback) {
+  sb.from("profiles").select("role,status,full_name").eq("id", userId).single()
+    .then(function(p) {
+      // If the profile row is missing (e.g. trigger lag), create a default one
+      // so the user is never stuck on /login despite being authenticated.
+      if (p.error || !p.data) {
+        sb.from("profiles")
+          .upsert({ id: userId, role: "user", status: "active" }, { onConflict: "id" })
+          .then(function() { window.location.replace("/dashboard"); })
+          .catch(function() { window.location.replace("/dashboard"); });
+        return;
+      }
+      if (p.data.status === "inactive") { sb.auth.signOut(); return; }
+      window.location.replace(p.data.role === "admin" ? "/admin" : "/dashboard");
+    })
+    .catch(function() { if (fallback) fallback(); });
+}
+
+// Check if already logged in — redirect immediately without signOut delay
+sb.auth.getSession().then(function(res) {
+  var session = res.data && res.data.session;
+  if (!session) return; // not logged in, stay on page
+  routeByProfile(session.user.id);
+});
+
+function doLogin(e) {
+  e.preventDefault();
+  var email    = document.getElementById("email").value.trim();
+  var password = document.getElementById("password").value;
+
+  errMsg.style.display = "none";
+  btn.disabled = true;
+  btn.textContent = "Signing in...";
+  overlay.style.display = "flex";
+
+  // Sign out silently first to clear stale session, then sign in
+  sb.auth.signOut().then(function() {
+    sb.auth.signInWithPassword({ email: email, password: password })
+      .then(function(res) {
+        if (res.error) { showErr(res.error.message); return; }
+        var userId = res.data.user.id;
+        sb.from("profiles").select("role,status").eq("id", userId).single()
+          .then(function(p) {
+            if (p.error || !p.data) {
+              // Profile missing — create a default user profile and proceed.
+              sb.from("profiles")
+                .upsert({ id: userId, role: "user", status: "active" }, { onConflict: "id" })
+                .then(function() { window.location.replace("/dashboard"); })
+                .catch(function() { window.location.replace("/dashboard"); });
+              return;
+            }
+            if (p.data.status === "inactive") {
+              sb.auth.signOut();
+              showErr("Your account has been deactivated. Contact support.");
+              return;
+            }
+            window.location.replace(p.data.role === "admin" ? "/admin" : "/dashboard");
+          })
+          .catch(function() { showErr("Could not load your account. Please try again."); });
+      })
+      .catch(function(err) { showErr("Network error. Please try again."); });
+  });
+}
+</script>
+  <!-- Live Chat Widget -->
+  
+
+<!-- Smartsupp Live Chat script -->
+<script type="text/javascript">
+var _smartsupp = _smartsupp || {};
+_smartsupp.key = '1e140e915c93dabc65cd84b616b9fc1242734c61';
+window.smartsupp||(function(d) {
+  var s,c,o=smartsupp=function(){ o._.push(arguments)};o._=[];
+  s=d.getElementsByTagName('script')[0];c=d.createElement('script');
+  c.type='text/javascript';c.charset='utf-8';c.async=true;
+  c.src='https://www.smartsuppchat.com/loader.js?';s.parentNode.insertBefore(c,s);
+})(document);
+</script>
+<noscript>Powered by <a href="https://www.smartsupp.com" target="_blank">Smartsupp</a></noscript>
+</body>
+</html>

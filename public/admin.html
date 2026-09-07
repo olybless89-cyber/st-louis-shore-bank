@@ -1,0 +1,3048 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Dashboard — St Louis Shore Bank</title>
+  <link rel="icon" type="image/svg+xml" href="storage/app/public/photos/favicon.svg">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter',sans-serif;background:#0b1120;color:#e2e8f0;min-height:100vh;display:flex;flex-direction:column}
+
+/* ── Layout ── */
+.app{display:flex;min-height:100vh}
+.sidebar{width:260px;background:#0d1526;border-right:1px solid #1e2d4a;display:flex;flex-direction:column;position:fixed;top:0;left:0;height:100vh;z-index:200;transition:transform .25s}
+.sidebar.hidden-mob{transform:translateX(-100%)}
+.main{flex:1;margin-left:260px;display:flex;flex-direction:column;min-height:100vh}
+@media(max-width:768px){.sidebar{transform:translateX(-100%)}.sidebar.open{transform:translateX(0)}.main{margin-left:0}}
+
+/* ── Sidebar ── */
+.sidebar-logo{padding:22px 20px 18px;border-bottom:1px solid #1e2d4a}
+.sidebar-logo svg text{fill:#fff}
+.sidebar-badge{display:inline-block;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;font-size:10px;font-weight:700;letter-spacing:1px;padding:3px 8px;border-radius:20px;margin-top:6px}
+.sidebar-nav{flex:1;overflow-y:auto;padding:16px 0}
+.nav-section{padding:8px 20px 4px;font-size:10px;font-weight:700;letter-spacing:1.5px;color:#4a5568;text-transform:uppercase}
+.nav-item{display:flex;align-items:center;gap:12px;padding:10px 20px;cursor:pointer;color:#94a3b8;font-size:14px;font-weight:500;border-left:3px solid transparent;transition:.15s;text-decoration:none}
+.nav-item:hover{background:#1a2640;color:#e2e8f0;border-left-color:#2563eb}
+.nav-item.active{background:#1a2640;color:#60a5fa;border-left-color:#2563eb}
+.nav-item .icon{width:18px;height:18px;opacity:.7;flex-shrink:0}
+.nav-item.active .icon{opacity:1}
+.nav-badge{margin-left:auto;background:#ef4444;color:#fff;font-size:10px;font-weight:700;min-width:18px;height:18px;border-radius:9px;display:flex;align-items:center;justify-content:center;padding:0 4px}
+.sidebar-footer{padding:16px 20px;border-top:1px solid #1e2d4a}
+.sidebar-user{display:flex;align-items:center;gap:10px;font-size:13px;color:#94a3b8}
+.avatar{width:32px;height:32px;background:linear-gradient(135deg,#2563eb,#7c3aed);border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;color:#fff;flex-shrink:0}
+
+/* ── Top bar ── */
+.topbar{background:#0d1526;border-bottom:1px solid #1e2d4a;padding:0 24px;height:60px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
+.topbar-title{font-size:17px;font-weight:700;color:#e2e8f0}
+.topbar-right{display:flex;align-items:center;gap:14px}
+.btn-icon{background:transparent;border:1px solid #1e2d4a;color:#94a3b8;width:38px;height:38px;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:.15s}
+.btn-icon:hover{background:#1a2640;color:#e2e8f0}
+.hamburger{display:none}
+@media(max-width:768px){.hamburger{display:flex}}
+.logout-btn{background:#1e2d4a;color:#94a3b8;border:none;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;transition:.15s}
+.logout-btn:hover{background:#2563eb;color:#fff}
+
+/* ── Content ── */
+.content{flex:1;padding:28px 28px;overflow-y:auto}
+@media(max-width:768px){.content{padding:16px}}
+.section{display:none}.section.active{display:block}
+.section-title{font-size:20px;font-weight:700;color:#f1f5f9;margin-bottom:6px}
+.section-sub{font-size:13px;color:#64748b;margin-bottom:24px}
+
+/* ── Stats grid ── */
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:16px;margin-bottom:28px}
+.stat-card{background:#0d1526;border:1px solid #1e2d4a;border-radius:12px;padding:20px;position:relative;overflow:hidden;transition:.2s}
+.stat-card:hover{border-color:#2563eb;transform:translateY(-2px)}
+.stat-card::before{content:'';position:absolute;top:0;right:0;width:60px;height:60px;border-radius:0 12px 0 60px;opacity:.08}
+.stat-card.blue::before{background:#2563eb}
+.stat-card.purple::before{background:#7c3aed}
+.stat-card.green::before{background:#10b981}
+.stat-card.orange::before{background:#f59e0b}
+.stat-card.red::before{background:#ef4444}
+.stat-label{font-size:11px;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:#64748b;margin-bottom:8px}
+.stat-value{font-size:26px;font-weight:800;color:#f1f5f9;line-height:1}
+.stat-sub{font-size:11px;color:#4a5568;margin-top:6px}
+.stat-icon{position:absolute;top:16px;right:16px;opacity:.15;font-size:28px}
+
+/* ── Tables ── */
+.table-wrap{background:#0d1526;border:1px solid #1e2d4a;border-radius:12px;overflow:hidden}
+.table-header{padding:16px 20px;border-bottom:1px solid #1e2d4a;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px}
+.table-header h3{font-size:15px;font-weight:700;color:#f1f5f9}
+.search-box{background:#0b1120;border:1px solid #1e2d4a;border-radius:8px;padding:8px 14px;font-size:13px;color:#e2e8f0;width:220px;outline:none;transition:.15s}
+.search-box:focus{border-color:#2563eb}
+.search-box::placeholder{color:#4a5568}
+.tbl{width:100%;border-collapse:collapse;min-width:600px}
+.tbl th{padding:12px 16px;font-size:11px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:#4a5568;border-bottom:1px solid #1e2d4a;text-align:left;white-space:nowrap}
+.tbl td{padding:13px 16px;font-size:13px;color:#94a3b8;border-bottom:1px solid #0f1929;white-space:nowrap}
+.tbl tr:last-child td{border-bottom:none}
+.tbl tr.clickable:hover{background:#1a2640;cursor:pointer}
+.tbl tr.clickable td{color:#cbd5e1}
+.overflow-x{overflow-x:auto}
+
+/* ── Badges ── */
+.badge{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700}
+.badge-active,.badge-approved,.badge-verified{background:#052e16;color:#4ade80}
+.badge-inactive,.badge-rejected{background:#2d0000;color:#f87171}
+.badge-pending{background:#1c1100;color:#fbbf24}
+.badge-admin{background:#1e1040;color:#a78bfa}
+.badge-user{background:#0a1f3a;color:#60a5fa}
+.badge-open{background:#0a1f3a;color:#60a5fa}
+.badge-in_progress{background:#1c1100;color:#fbbf24}
+.badge-resolved,.badge-closed{background:#052e16;color:#4ade80}
+.badge-cancelled{background:#1e1e1e;color:#94a3b8}
+.badge-unverified{background:#1e1e1e;color:#94a3b8}
+.badge-credit{background:#052e16;color:#4ade80}
+.badge-hold{background:#1c1100;color:#fbbf24}
+.badge-release,.badge-transfer{background:#0a1f3a;color:#60a5fa}
+
+/* ── Buttons ── */
+.btn{padding:9px 18px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;border:none;transition:.15s;display:inline-flex;align-items:center;gap:6px}
+.btn-primary{background:#2563eb;color:#fff}.btn-primary:hover{background:#1d4ed8}
+.btn-success{background:#059669;color:#fff}.btn-success:hover{background:#047857}
+.btn-danger{background:#dc2626;color:#fff}.btn-danger:hover{background:#b91c1c}
+.btn-warning{background:#d97706;color:#fff}.btn-warning:hover{background:#b45309}
+.btn-ghost{background:#1e2d4a;color:#94a3b8}.btn-ghost:hover{background:#2d3f5e;color:#e2e8f0}
+.btn-sm{padding:6px 12px;font-size:12px}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+
+/* ── Modal ── */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:500;display:none;align-items:center;justify-content:center;padding:16px}
+.modal-overlay.open{display:flex}
+.modal{background:#0d1526;border:1px solid #1e2d4a;border-radius:16px;width:100%;max-width:520px;max-height:90vh;overflow-y:auto;box-shadow:0 25px 60px rgba(0,0,0,.5)}
+.modal-header{padding:20px 24px 0;display:flex;align-items:flex-start;justify-content:space-between;gap:16px}
+.modal-title{font-size:18px;font-weight:700;color:#f1f5f9}
+.modal-close{background:transparent;border:none;color:#64748b;cursor:pointer;font-size:22px;line-height:1;padding:0;flex-shrink:0;margin-top:2px}
+.modal-close:hover{color:#f87171}
+.modal-body{padding:20px 24px 24px}
+.form-group{margin-bottom:16px}
+.form-label{display:block;font-size:12px;font-weight:700;letter-spacing:.5px;color:#94a3b8;margin-bottom:6px;text-transform:uppercase}
+.form-input,.form-select,.form-textarea{width:100%;background:#0b1120;border:1.5px solid #1e2d4a;border-radius:8px;padding:11px 14px;font-size:14px;color:#e2e8f0;outline:none;transition:.15s;font-family:inherit}
+.form-input:focus,.form-select:focus,.form-textarea:focus{border-color:#2563eb}
+.form-textarea{resize:vertical;min-height:80px}
+.form-select option{background:#0d1526}
+.modal-footer{padding:0 24px 20px;display:flex;gap:10px;justify-content:flex-end}
+
+/* ── User profile panel ── */
+.user-profile-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:18px}
+@media(max-width:480px){.user-profile-grid{grid-template-columns:1fr}}
+.info-item .label{font-size:11px;font-weight:700;letter-spacing:.5px;color:#4a5568;text-transform:uppercase;margin-bottom:3px}
+.info-item .value{font-size:14px;color:#cbd5e1;font-weight:500}
+.balance-display{background:#0b1120;border:1px solid #1e2d4a;border-radius:10px;padding:16px;margin-bottom:16px;display:grid;grid-template-columns:1fr 1fr;gap:12px;text-align:center}
+.balance-display .amt{font-size:22px;font-weight:800;color:#4ade80}
+.balance-display .amt.held{color:#fbbf24}
+.balance-display .lbl{font-size:11px;color:#4a5568;margin-top:2px}
+.action-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
+
+/* ── Alert ── */
+.alert{padding:12px 16px;border-radius:8px;font-size:13px;margin-bottom:16px;display:none}
+.alert-err{background:#2d0000;color:#f87171;border:1px solid #7f1d1d}
+.alert-ok{background:#052e16;color:#4ade80;border:1px solid #14532d}
+.alert-info{background:#0a1f3a;color:#93c5fd;border:1px solid #1e3a5f}
+
+/* ── Loading ── */
+.loader-overlay{position:fixed;inset:0;background:rgba(11,17,32,.9);z-index:999;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:16px}
+.spinner{width:42px;height:42px;border:4px solid #1e2d4a;border-top:4px solid #2563eb;border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loader-text{font-size:15px;color:#60a5fa;font-weight:600}
+
+/* ── Empty state ── */
+.empty{text-align:center;padding:48px 24px;color:#4a5568}
+/* ── Inline alert banner (load failures) ── */
+.alert-banner{display:none;align-items:flex-start;gap:10px;background:#2d0f0f;border:1px solid #7f1d1d;border-left:4px solid #ef4444;color:#fca5a5;border-radius:10px;padding:14px 16px;margin:0 20px 16px;font-size:13px;line-height:1.5}
+.alert-banner.show{display:flex}
+.alert-banner .alert-icon{font-size:18px;line-height:1.2;flex-shrink:0}
+.alert-banner code{background:#1a0606;color:#fecaca;padding:1px 5px;border-radius:4px;font-size:12px}
+.alert-banner a{color:#93c5fd;text-decoration:underline}
+.empty-icon{font-size:40px;margin-bottom:12px;opacity:.4}
+.empty-text{font-size:15px}
+
+/* ── Deposit Payment Methods ── */
+.pm-tabs .pm-tab{background:#0b1120;border:1px solid #1e2d4a;color:#94a3b8;font-weight:600;padding:9px 16px;border-radius:10px;cursor:pointer}
+.pm-tabs .pm-tab:hover{border-color:#2563eb;color:#e2e8f0}
+.pm-tabs .pm-tab.active{background:#1a3a8f;border-color:#2563eb;color:#fff}
+.pm-card .form-group{background:#0d1526;border:1px solid #1e2d4a;border-radius:10px;padding:14px 16px;margin-bottom:12px}
+.pm-card .form-label{font-size:12px;color:#94a3b8;margin-bottom:6px}
+.pm-card .form-input{width:100%;background:#0b1120;border:1px solid #2a3b5c;border-radius:8px;color:#e2e8f0;padding:10px 12px;font-size:13px;outline:none}
+.pm-card .form-input:focus{border-color:#2563eb;box-shadow:0 0 0 3px rgba(37,99,235,.15)}
+.pm-card .form-textarea{width:100%;background:#0b1120;border:1px solid #2a3b5c;border-radius:8px;color:#e2e8f0;padding:10px 12px;font-size:13px;outline:none;min-height:90px;resize:vertical;font-family:inherit}
+.pm-card .form-textarea:focus{border-color:#2563eb;box-shadow:0 0 0 3px rgba(37,99,235,.15)}
+.pm-card .kv{display:flex;justify-content:space-between;gap:16px;padding:9px 0;border-bottom:1px solid #121b2f;font-size:13px}
+.pm-card .kv:last-child{border-bottom:none}
+.pm-card .kv .k{color:#64748b;flex:0 0 auto}
+.pm-card .kv .v{color:#e2e8f0;text-align:right;word-break:break-all;font-family:monospace;font-size:12px}
+.pm-status-on{background:#052e16;color:#4ade80;border:1px solid #14532d}
+.pm-status-off{background:#3a0a0a;color:#f87171;border:1px solid #7f1d1d}
+
+/* ── Recent activity ── */
+.activity-list{display:flex;flex-direction:column;gap:0}
+.activity-item{display:flex;align-items:center;gap:14px;padding:13px 0;border-bottom:1px solid #0f1929}
+.activity-item:last-child{border-bottom:none}
+.activity-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.dot-green{background:#4ade80}.dot-yellow{background:#fbbf24}.dot-blue{background:#60a5fa}.dot-red{background:#f87171}
+.activity-info{flex:1;min-width:0}
+.activity-title{font-size:13px;font-weight:600;color:#cbd5e1;truncate:true;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.activity-meta{font-size:11px;color:#4a5568;margin-top:2px}
+.activity-amount{font-size:13px;font-weight:700;flex-shrink:0}
+.amount-credit{color:#4ade80}.amount-debit{color:#f87171}
+
+/* ── Overlay toggle ── */
+.mob-backdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:150}
+@media(max-width:768px){.mob-backdrop.show{display:block}}
+
+/* ── Email thread bubbles ── */
+.em-thread{display:flex;flex-direction:column;gap:10px;max-height:320px;overflow-y:auto;padding:4px 2px}
+.em-msg{max-width:85%;display:flex;flex-direction:column;gap:3px}
+.em-msg.in{align-self:flex-end;align-items:flex-end}
+.em-msg.out{align-self:flex-start;align-items:flex-start}
+.em-msg .em-bubble{padding:9px 13px;border-radius:12px;font-size:13px;line-height:1.55;white-space:pre-wrap;word-break:break-word}
+.em-msg.in .em-bubble{background:#1e40af;color:#eff6ff;border-bottom-right-radius:3px}
+.em-msg.out .em-bubble{background:#1e2d4a;color:#e2e8f0;border-bottom-left-radius:3px}
+.em-msg .em-meta{font-size:10px;color:#475569}
+  </style>
+</head>
+<body>
+
+<!-- Loading overlay -->
+<div class="loader-overlay" id="loader">
+  <div class="spinner"></div>
+  <span class="loader-text">Loading Admin Panel...</span>
+</div>
+
+<!-- Mobile backdrop -->
+<div class="mob-backdrop" id="mob-backdrop" onclick="closeSidebar()"></div>
+
+<div class="app">
+  <!-- ── SIDEBAR ── -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-logo">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 48" width="160" height="36">
+        <path d="M8 10 L8 38 L16 38 L16 22 L22 34 L28 22 L28 38 L36 38 L36 10 L28 10 L22 24 L16 10 Z" fill="#fff"/>
+        <path d="M6 42 Q22 35 38 42" stroke="#93c5fd" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+        <text x="46" y="29" font-family="Inter,sans-serif" font-size="17" font-weight="700">St Louis Shore Bank</text>
+        <text x="47" y="42" font-family="Inter,sans-serif" font-size="8" font-weight="500" fill="#93c5fd" letter-spacing="2.5">BANK</text>
+      </svg>
+      <div class="sidebar-badge">ADMIN PANEL</div>
+    </div>
+
+    <nav class="sidebar-nav">
+      <div class="nav-section">Overview</div>
+      <a class="nav-item active" onclick="showSection('dashboard')" href="#">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        Dashboard
+      </a>
+
+      <div class="nav-section">User Management</div>
+      <a class="nav-item" onclick="showSection('users')" href="#">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        All Users
+      </a>
+      <a class="nav-item" onclick="openWireSettingsModal()" href="#" title="Configurewire transfer codes for any user">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><circle cx="12" cy="12" r="4"/></svg>
+        Wire Codes
+      </a>
+      <a class="nav-item" onclick="showSection('cards')" href="#">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+        Cards
+      </a>
+
+      <div class="nav-section">Approvals</div>
+      <a class="nav-item" onclick="showSection('deposits')" href="#">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Deposits
+        <span class="nav-badge" id="nb-deposits">0</span>
+      </a>
+      <a class="nav-item" onclick="showSection('transfers')" href="#">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        Transfers
+        <span class="nav-badge" id="nb-transfers">0</span>
+      </a>
+      <a class="nav-item" onclick="showSection('loans')" href="#">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+        Loans
+        <span class="nav-badge" id="nb-loans">0</span>
+      </a>
+      <a class="nav-item" onclick="showSection('livechat')" href="#">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        Live Chat
+        <span class="nav-badge" id="nb-livechat" style="display:none">0</span>
+      </a>
+      <a class="nav-item" onclick="showSection('tickets')" href="#">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        Support Tickets
+        <span class="nav-badge" id="nb-tickets">0</span>
+      </a>
+      <a class="nav-item" onclick="showSection('email')" href="#">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M22 6l-10 7L2 6"/></svg>
+        Email
+        <span class="nav-badge" id="nb-email" style="display:none">0</span>
+      </a>
+
+      <div class="nav-section">Finance</div>
+      <a class="nav-item" onclick="showSection('transactions')" href="#">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        All Transactions
+      </a>
+
+      <div class="nav-section">Settings</div>
+      <a class="nav-item" onclick="showSection('security')" href="#">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        Security
+      </a>
+      <a class="nav-item" onclick="showSection('deposit-methods')" href="#">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 9V7a5 5 0 0 0-10 0v2"/><circle cx="12" cy="12" r="3.5"/><path d="M3 12a9 9 0 0 1 18 0M3 12a9 9 0 0 0 18 0"/></svg>
+        Deposit Payment Methods
+      </a>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="sidebar-user">
+        <div class="avatar" id="admin-avatar">A</div>
+        <div>
+          <div id="admin-name" style="font-weight:600;color:#e2e8f0;font-size:13px">Admin</div>
+          <div style="font-size:11px">Super Administrator</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ── MAIN ── -->
+  <div class="main">
+    <!-- Topbar -->
+    <header class="topbar">
+      <div style="display:flex;align-items:center;gap:14px">
+        <button class="btn-icon hamburger" onclick="toggleSidebar()">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
+        <span class="topbar-title" id="page-title">Dashboard</span>
+      </div>
+      <div class="topbar-right">
+        <button class="btn-icon" onclick="loadAll()" title="Refresh">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+        </button>
+        <button class="logout-btn" onclick="doLogout()">Sign Out</button>
+      </div>
+    </header>
+
+    <!-- Content -->
+    <div class="content">
+
+      <!-- ═══════════ DASHBOARD ═══════════ -->
+      <div class="section active" id="section-dashboard">
+        <div class="section-title">Welcome back, Admin 👋</div>
+        <div class="section-sub">Here's what's happening across St Louis Shore Bank today.</div>
+
+        <div class="stats-grid">
+          <div class="stat-card blue">
+            <div class="stat-label">Total Users</div>
+            <div class="stat-value" id="s-total-users">—</div>
+            <div class="stat-sub" id="s-active-users">Loading...</div>
+            <div class="stat-icon">👥</div>
+          </div>
+          <div class="stat-card green">
+            <div class="stat-label">Total Balance</div>
+            <div class="stat-value" id="s-total-balance">—</div>
+            <div class="stat-sub" id="s-total-held">Loading...</div>
+            <div class="stat-icon">💰</div>
+          </div>
+          <div class="stat-card orange">
+            <div class="stat-label">Pending Transfers</div>
+            <div class="stat-value" id="s-pending-transfers">—</div>
+            <div class="stat-sub">Awaiting approval</div>
+            <div class="stat-icon">⏳</div>
+          </div>
+          <div class="stat-card purple">
+            <div class="stat-label">Pending Loans</div>
+            <div class="stat-value" id="s-pending-loans">—</div>
+            <div class="stat-sub">Awaiting review</div>
+            <div class="stat-icon">📋</div>
+          </div>
+          <div class="stat-card green">
+            <div class="stat-label">Pending Deposits</div>
+            <div class="stat-value" id="s-pending-deposits">—</div>
+            <div class="stat-sub">Awaiting approval</div>
+            <div class="stat-icon">💵</div>
+          </div>
+          <div class="stat-card red">
+            <div class="stat-label">Open Tickets</div>
+            <div class="stat-value" id="s-open-tickets">—</div>
+            <div class="stat-sub">Support issues</div>
+            <div class="stat-icon">🎫</div>
+          </div>
+          <div class="stat-card blue">
+            <div class="stat-label">Transactions</div>
+            <div class="stat-value" id="s-total-txns">—</div>
+            <div class="stat-sub">All time</div>
+            <div class="stat-icon">📊</div>
+          </div>
+        </div>
+
+        <!-- Recent activity -->
+        <div class="table-wrap">
+          <div class="table-header">
+            <h3>Recent Transactions</h3>
+            <button class="btn btn-ghost btn-sm" onclick="showSection('transactions')">View All →</button>
+          </div>
+          <div id="recent-activity" style="padding:4px 0">
+            <div class="empty"><div class="empty-icon">📊</div><div class="empty-text">Loading...</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══════════ USERS ═══════════ -->
+      <div class="section" id="section-users">
+        <div class="section-title">User Management</div>
+        <div class="section-sub">Click any user to manage their account, funds, and status.</div>
+        <div class="alert-banner" id="wire-settings-alert" style="display:flex;align-items:center;gap:10px;background:#0a1f3a;border:1px solid #1e3a5f;border-left:4px solid #2563eb;color:#93c5fd;border-radius:10px;padding:12px 16px;margin-bottom:14px;font-size:13px;line-height:1.5">
+          <span class="alert-icon">🌐</span>
+          <span style="flex:1" id="wire-settings-alert-text">Configure the International Wire codes for all users.</span>
+          <button class="btn btn-primary btn-sm" onclick="openWireSettingsModal()">Configure</button>
+        </div>
+        <div class="alert-banner" id="users-alert">
+          <span class="alert-icon">⚠️</span>
+          <span id="users-alert-text"></span>
+        </div>
+        <div class="table-wrap">
+          <div class="table-header">
+            <h3>All Users <span id="user-count" style="color:#4a5568;font-weight:400;font-size:13px"></span></h3>
+            <input class="search-box" type="text" placeholder="Search by name or email..." id="user-search" oninput="filterUsers()">
+          </div>
+          <div class="overflow-x">
+            <table class="tbl">
+              <thead><tr>
+                <th>User</th><th>Account</th><th>Balance</th><th>Held</th>
+                <th>Status</th><th>KYC</th><th>Joined</th><th>Wire</th>
+              </tr></thead>
+              <tbody id="users-tbody">
+                <tr><td colspan="8"><div class="empty"><div class="empty-icon">👥</div><div class="empty-text">Loading users...</div></div></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══════════ CARDS ═══════════ -->
+      <div class="section" id="section-cards">
+        <div class="section-title">Card Management</div>
+        <div class="section-sub">Every user is auto-issued a virtual debit card. Freeze, block, or edit any card here — independent of KYC status.</div>
+        <div class="table-wrap">
+          <div class="table-header">
+            <h3>All Cards <span id="card-count" style="color:#4a5568;font-weight:400;font-size:13px"></span></h3>
+            <input class="search-box" type="text" placeholder="Search by name or email..." id="card-search" oninput="filterCards()">
+          </div>
+          <div class="overflow-x">
+            <table class="tbl">
+              <thead><tr>
+                <th>User</th><th>Card Number</th><th>Expiry</th><th>CVV</th><th>PIN</th>
+                <th>Status</th><th>Issued</th><th></th>
+              </tr></thead>
+              <tbody id="cards-tbody">
+                <tr><td colspan="8"><div class="empty"><div class="empty-icon">💳</div><div class="empty-text">Loading cards...</div></div></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══════════ TRANSFERS ═══════════ -->
+      <div class="section" id="section-transfers">
+        <div class="section-title">Transfer Approvals</div>
+        <div class="section-sub">Review and approve or reject user transfer requests.</div>
+        <div class="table-wrap">
+          <div class="table-header">
+            <h3>Transfer Requests</h3>
+            <select id="transfer-filter" class="search-box" style="width:160px" onchange="loadTransfers()">
+              <option value="pending">Pending</option>
+              <option value="approved">Approved</option>
+              <option value="rejected">Rejected</option>
+              <option value="">All</option>
+            </select>
+          </div>
+          <div class="overflow-x">
+            <table class="tbl">
+              <thead><tr>
+                <th>User</th><th>Amount</th><th>Recipient</th><th>Bank</th>
+                <th>Reason</th><th>Status</th><th>Date</th><th>Actions</th>
+              </tr></thead>
+              <tbody id="transfers-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══════════ LOANS ═══════════ -->
+      <div class="section" id="section-loans">
+        <div class="section-title">Loan Applications</div>
+        <div class="section-sub">Review and approve or reject loan applications.</div>
+        <div class="table-wrap">
+          <div class="table-header">
+            <h3>Loan Applications</h3>
+            <select id="loan-filter" class="search-box" style="width:160px" onchange="loadLoans()">
+              <option value="pending">Pending</option>
+              <option value="approved">Approved</option>
+              <option value="rejected">Rejected</option>
+              <option value="">All</option>
+            </select>
+          </div>
+          <div class="overflow-x">
+            <table class="tbl">
+              <thead><tr>
+                <th>User</th><th>Amount</th><th>Term</th><th>Purpose</th>
+                <th>Income</th><th>Status</th><th>Date</th><th>Actions</th>
+              </tr></thead>
+              <tbody id="loans-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══════════ LIVE CHAT ═══════════ -->
+      <div class="section" id="section-livechat">
+        <div class="section-title">💬 Live Chat</div>
+        <div class="section-sub">Real-time support conversations with users.</div>
+        <div style="display:grid;grid-template-columns:300px 1fr;gap:18px;height:calc(100vh - 180px);min-height:480px">
+          <!-- Chat session list -->
+          <div style="background:#0f1b2d;border:1.5px solid #1e2d4a;border-radius:14px;display:flex;flex-direction:column;overflow:hidden">
+            <div style="padding:14px 16px;border-bottom:1px solid #1e2d4a;display:flex;align-items:center;justify-content:space-between">
+              <span style="color:#e2e8f0;font-weight:700;font-size:14px">Conversations</span>
+              <button class="btn btn-ghost btn-sm" onclick="loadLiveChats()">↻ Refresh</button>
+            </div>
+            <div style="overflow-y:auto;flex:1" id="lc-session-list">
+              <div style="padding:24px;text-align:center;color:#64748b;font-size:13px">Loading…</div>
+            </div>
+          </div>
+          <!-- Chat window -->
+          <div style="background:#0f1b2d;border:1.5px solid #1e2d4a;border-radius:14px;display:flex;flex-direction:column;overflow:hidden" id="lc-window">
+            <div style="flex:1;display:flex;align-items:center;justify-content:center;color:#64748b;font-size:13px;flex-direction:column;gap:8px" id="lc-empty-state">
+              <div style="font-size:36px">💬</div>
+              <div>Select a conversation to reply</div>
+            </div>
+            <!-- Chat messages pane (hidden until session selected) -->
+            <div style="display:none;flex-direction:column;height:100%" id="lc-chat-pane">
+              <div style="padding:14px 18px;border-bottom:1px solid #1e2d4a;display:flex;align-items:center;gap:10px">
+                <div style="width:34px;height:34px;border-radius:50%;background:#1e3a8a;display:flex;align-items:center;justify-content:center;color:#93c5fd;font-weight:700;font-size:14px" id="lc-user-avatar">U</div>
+                <div>
+                  <div style="color:#e2e8f0;font-weight:700;font-size:14px" id="lc-user-name">User</div>
+                  <div style="color:#64748b;font-size:12px" id="lc-user-email"></div>
+                </div>
+                <div style="margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+                  <button class="btn btn-success btn-sm" id="lc-wire-btn" onclick="sendWireCodeChat()" style="display:none" title="Send the selected user's International Wire codes in this chat">🌐 Share Wire Codes</button>
+                  <select id="lc-status-sel" class="search-box" style="width:130px;font-size:12px" onchange="updateLcStatus()">
+                    <option value="open">Open</option>
+                    <option value="pending">Pending</option>
+                    <option value="closed">Resolved</option>
+                  </select>
+                </div>
+              </div>
+              <div style="flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px;background:#0a1525" id="lc-msgs"></div>
+              <div style="padding:12px 14px;border-top:1px solid #1e2d4a;background:#0f1b2d;display:flex;gap:8px;align-items:flex-end">
+                <textarea id="lc-reply-input" placeholder="Type your reply…" rows="2"
+                  style="flex:1;background:#1e2d4a;border:1.5px solid #2d3f5e;border-radius:10px;color:#e2e8f0;padding:9px 12px;font-size:13px;resize:none;outline:none;font-family:inherit"
+                  onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendLcReply();}"></textarea>
+                <button class="btn btn-primary btn-sm" id="lc-send-btn" onclick="sendLcReply()">Send</button>
+              </div>
+              <div class="alert alert-error" id="lc-err" style="display:none;margin:0 14px 10px"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══════════ TICKETS ═══════════ -->
+      <div class="section" id="section-tickets">
+        <div class="section-title">Support Tickets</div>
+        <div class="section-sub">Respond to user support requests.</div>
+        <div class="table-wrap">
+          <div class="table-header">
+            <h3>Tickets</h3>
+            <select id="ticket-filter" class="search-box" style="width:160px" onchange="loadTickets()">
+              <option value="open">Open</option>
+              <option value="in_progress">In Progress</option>
+              <option value="resolved">Resolved</option>
+              <option value="">All</option>
+            </select>
+          </div>
+          <div class="overflow-x">
+            <table class="tbl">
+              <thead><tr>
+                <th>User</th><th>Subject</th><th>Category</th>
+                <th>Status</th><th>Date</th><th>Actions</th>
+              </tr></thead>
+              <tbody id="tickets-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══════════ EMAIL ═══════════ -->
+      <div class="section" id="section-email">
+        <div class="section-title">Email</div>
+        <div class="section-sub">Send and receive email as <strong style="color:#60a5fa">St Louis Shore Bank Support &lt;support@stlouisshorebank.com&gt;</strong>. Mail to registered users is delivered to their Webmail inbox.</div>
+        <div class="table-wrap">
+          <div class="table-header">
+            <div style="display:flex;gap:8px">
+              <button class="btn btn-primary btn-sm" id="email-tab-inbox" onclick="setEmailTab('inbox')">Inbox</button>
+              <button class="btn btn-ghost btn-sm" id="email-tab-sent" onclick="setEmailTab('sent')">Sent</button>
+              <button class="btn btn-ghost btn-sm" id="email-tab-compose" onclick="setEmailTab('compose')">✉️ Compose</button>
+            </div>
+            <button class="btn btn-ghost btn-sm" onclick="loadEmail(true)">↻ Refresh</button>
+          </div>
+          <div class="overflow-x" id="email-inbox-pane">
+            <table class="tbl">
+              <thead><tr>
+                <th>From</th><th>Subject</th><th>Category</th>
+                <th>Status</th><th>Date</th><th>Actions</th>
+              </tr></thead>
+              <tbody id="email-inbox-tbody"></tbody>
+            </table>
+          </div>
+          <div class="overflow-x" id="email-sent-pane" style="display:none">
+            <table class="tbl">
+              <thead><tr>
+                <th>To</th><th>Subject</th><th>Date</th><th>Actions</th>
+              </tr></thead>
+              <tbody id="email-sent-tbody"></tbody>
+            </table>
+          </div>
+          <div id="email-compose-pane" style="display:none;padding:20px;max-width:640px">
+            <div class="alert alert-err" id="em-err"></div>
+            <div class="alert alert-ok" id="em-ok" style="display:none"></div>
+            <div class="info-note">Sent as <strong>St Louis Shore Bank Support &lt;support@stlouisshorebank.com&gt;</strong> — delivered to the user's Webmail inbox.</div>
+            <div class="form-group"><label class="form-label">To</label>
+              <select class="form-select" id="em-to"></select>
+            </div>
+            <div class="form-group"><label class="form-label">Subject</label><input class="form-input" type="text" id="em-subject" placeholder="e.g. Account verification update"></div>
+            <div class="form-group"><label class="form-label">Category</label>
+              <select class="form-select" id="em-category">
+                <option value="account">Account</option>
+                <option value="billing">Billing</option>
+                <option value="general">General</option>
+                <option value="technical">Technical</option>
+                <option value="fraud">Fraud / Security</option>
+              </select>
+            </div>
+            <div class="form-group"><label class="form-label">Message</label><textarea class="form-textarea" id="em-body" style="min-height:140px" placeholder="Type your message..."></textarea></div>
+            <button class="btn btn-primary" onclick="doEmailCompose()" id="em-btn">Send Email</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══════════ DEPOSITS ═══════════ -->
+      <div class="section" id="section-deposits">
+        <div class="section-title">Deposit Requests</div>
+        <div class="section-sub">Review and approve or reject user deposit requests.</div>
+        <div class="table-wrap">
+          <div class="table-header">
+            <h3>Deposit Requests</h3>
+            <select id="deposit-filter" class="search-box" style="width:160px" onchange="loadDeposits()">
+              <option value="pending">Pending</option>
+              <option value="approved">Approved</option>
+              <option value="rejected">Rejected</option>
+              <option value="">All</option>
+            </select>
+          </div>
+          <div class="overflow-x">
+            <table class="tbl">
+              <thead><tr>
+                <th>User</th><th>Amount</th><th>Method</th><th>Reference</th>
+                <th>Status</th><th>Date</th><th>Actions</th>
+              </tr></thead>
+              <tbody id="deposits-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══════════ TRANSACTIONS ═══════════ -->
+      <div class="section" id="section-transactions">
+        <div class="section-title">All Transactions</div>
+        <div class="section-sub">Full ledger of all fund movements.</div>
+        <div class="table-wrap">
+          <div class="table-header">
+            <h3>Transaction Ledger</h3>
+            <input class="search-box" type="text" placeholder="Search..." id="txn-search" oninput="filterTxns()">
+          </div>
+          <div class="overflow-x">
+            <table class="tbl">
+              <thead><tr>
+                <th>User</th><th>Type</th><th>Amount</th><th>Reason</th>
+                <th>Status</th><th>Date</th><th></th>
+              </tr></thead>
+              <tbody id="txns-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══════════ SECURITY ═══════════ -->
+      <div class="section" id="section-security">
+        <div class="section-title">Security</div>
+        <div class="section-sub">Manage your administrator login credentials.</div>
+        <div style="background:#0b1120;border:1px solid #1e2d4a;border-radius:10px;padding:20px;max-width:560px">
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid #1e2d4a">
+            <div class="avatar" style="width:44px;height:44px;font-size:18px" id="admin-sec-avatar">A</div>
+            <div>
+              <div style="font-weight:700;color:#e2e8f0;font-size:14px" id="admin-sec-name">Admin</div>
+              <div style="font-size:12px;color:#64748b" id="admin-sec-email">—</div>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Current Password</label>
+            <input class="form-input" type="password" id="sec-current" placeholder="Enter current password" autocomplete="current-password">
+          </div>
+          <div class="form-group">
+            <label class="form-label">New Password</label>
+            <input class="form-input" type="password" id="sec-new" placeholder="Min. 8 characters" autocomplete="new-password">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Confirm New Password</label>
+            <input class="form-input" type="password" id="sec-confirm" placeholder="Re-enter new password" autocomplete="new-password">
+          </div>
+          <div class="alert" id="sec-msg"></div>
+          <button class="btn btn-primary" onclick="doChangePassword()" id="sec-btn">Update Password</button>
+        </div>
+      </div>
+
+      <!-- ═══ DEPOSIT PAYMENT METHODS ═══ -->
+      <div class="section" id="section-deposit-methods">
+        <div class="section-title">Deposit Payment Methods</div>
+        <div class="section-sub">Manage the payment information customers see when funding their accounts. Changes apply immediately — no deployment needed.</div>
+        <div class="alert alert-err" id="pm-err" style="display:none;margin-bottom:14px"></div>
+        <div class="alert alert-ok" id="pm-ok" style="display:none;margin-bottom:14px"></div>
+
+        <div class="pm-tabs" id="pm-tabs" style="display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap">
+          <button class="btn pm-tab active" data-pm="bitcoin" onclick="pmSelectTab(this,'bitcoin')">₿ Bitcoin</button>
+          <button class="btn pm-tab" data-pm="bank_transfer" onclick="pmSelectTab(this,'bank_transfer')">🏦 Bank Transfer</button>
+          <button class="btn pm-tab" data-pm="paypal" onclick="pmSelectTab(this,'paypal')">💳 PayPal</button>
+        </div>
+
+        <div class="pm-card" id="pm-card" style="background:#0b1120;border:1px solid #1e2d4a;border-radius:14px;padding:24px;max-width:840px">
+          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:6px">
+            <div style="font-size:18px;font-weight:800;color:#e2e8f0" id="pm-card-title">Bitcoin</div>
+            <span class="badge" id="pm-status-badge" style="background:#052e16;color:#4ade80;border:1px solid #14532d">Active</span>
+          </div>
+          <div style="font-size:12px;color:#64748b;margin-bottom:18px" id="pm-card-sub">Show this wallet to customers who select Bitcoin.</div>
+
+          <div id="pm-view">
+            <div id="pm-current" style="margin-bottom:20px"></div>
+            <div style="display:flex;gap:10px;flex-wrap:wrap">
+              <button class="btn btn-primary" onclick="pmStartEdit()">✏️ Edit</button>
+              <button class="btn btn-ghost" id="pm-toggle-btn" onclick="pmToggleActive()">Deactivate</button>
+            </div>
+          </div>
+
+          <div id="pm-edit" style="display:none">
+            <div id="pm-fields"></div>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:18px">
+              <button class="btn btn-primary" onclick="pmSave()" id="pm-save-btn">Save Changes</button>
+              <button class="btn btn-ghost" onclick="pmCancelEdit()">Cancel</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /content -->
+  </div><!-- /main -->
+</div><!-- /app -->
+
+<!-- ═══ MODALS ═══ -->
+
+<!-- User Detail Modal -->
+<div class="modal-overlay" id="modal-user">
+  <div class="modal">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title" id="mu-name">User</div>
+        <div style="font-size:12px;color:#4a5568;margin-top:3px" id="mu-email"></div>
+      </div>
+      <button class="modal-close" onclick="closeModal('modal-user')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="balance-display">
+        <div><div class="amt" id="mu-balance">$0.00</div><div class="lbl">Available Balance</div></div>
+        <div><div class="amt held" id="mu-held">$0.00</div><div class="lbl">Held Funds</div></div>
+      </div>
+      <div class="user-profile-grid">
+        <div class="info-item"><div class="label">Account</div><div class="value" id="mu-acct" style="font-family:monospace;font-size:11px;word-break:break-all">—</div></div>
+        <div class="info-item"><div class="label">Status</div><div class="value" id="mu-status"></div></div>
+        <div class="info-item"><div class="label">KYC</div><div class="value" id="mu-kyc"></div></div>
+        <div class="info-item"><div class="label">Joined</div><div class="value" id="mu-joined">—</div></div>
+      </div>
+
+      <div class="action-grid">
+        <button class="btn btn-success" onclick="openFundModal()">💵 Credit Funds</button>
+        <button class="btn btn-warning" onclick="openHoldModal()">🔒 Hold Funds</button>
+        <button class="btn btn-ghost" onclick="openReleaseModal()">🔓 Release Hold</button>
+        <button class="btn btn-ghost" onclick="openTxnHistory()">📋 Transactions</button>
+        <button class="btn btn-primary" onclick="openWireSettingsModalForUser()">🌐 Wire Codes</button>
+        <button class="btn btn-ghost" onclick="openMessageModal()">✉️ Send Message</button>
+        <button class="btn btn-ghost" onclick="openEditUserModal()">✏️ Edit Profile</button>
+        <button class="btn btn-ghost" onclick="openEditCardModalForUser()">💳 Manage Card</button>
+      </div>
+
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+        <button class="btn btn-ghost btn-sm" id="mu-toggle-btn" onclick="toggleUserStatus()">Toggle Status</button>
+        <select class="form-select" style="flex:1;font-size:12px;padding:6px 10px" id="mu-kyc-select" onchange="updateKyc()">
+          <option value="">Update KYC Status...</option>
+          <option value="unverified">Unverified</option>
+          <option value="pending">Pending</option>
+          <option value="verified">Verified</option>
+          <option value="rejected">Rejected</option>
+        </select>
+      </div>
+      <div class="alert alert-err" id="mu-err" style="margin-top:10px"></div>
+
+      <div style="margin-top:16px;padding-top:14px;border-top:1px solid #1e2d4a">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#f87171;margin-bottom:8px">⚠ Danger Zone</div>
+        <button class="btn btn-danger btn-sm" style="width:100%" onclick="openDeleteUserConfirm()">🗑️ Delete User (Permanent)</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Edit User Profile Modal -->
+<div class="modal-overlay" id="modal-edit-user">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title">✏️ Edit User Profile</div><button class="modal-close" onclick="closeModal('modal-edit-user')">✕</button></div>
+    <div class="modal-body">
+      <div class="alert alert-err" id="eu-err"></div>
+      <div class="alert alert-ok" id="eu-ok"></div>
+      <div class="form-group"><label class="form-label">Full Name</label><input class="form-input" type="text" id="eu-name"></div>
+      <div class="form-group"><label class="form-label">Email</label><input class="form-input" type="email" id="eu-email"></div>
+      <div class="form-group"><label class="form-label">Account Number</label><input class="form-input" type="text" id="eu-account" style="font-family:monospace"></div>
+      <div class="form-group"><label class="form-label">Balance Override (USD)</label><input class="form-input" type="number" id="eu-balance" min="0" step="0.01"></div>
+      <div class="form-group"><label class="form-label">Transaction Limit (USD)</label><input class="form-input" type="number" id="eu-limit" min="0" step="0.01"></div>
+      <div class="info-note" style="background:#3a1f0a;border:1px solid #5f3a1e;color:#fbbf24">⚠️ Balance and Transaction Limit are direct overrides — they take effect immediately with no transaction log entry.</div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-edit-user')">Cancel</button>
+      <button class="btn btn-primary" id="eu-save-btn" onclick="doSaveUserProfile()">Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<!-- Delete User Confirm Modal -->
+<div class="modal-overlay" id="modal-delete-user">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title">🗑️ Delete User — Permanent</div><button class="modal-close" onclick="closeModal('modal-delete-user')">✕</button></div>
+    <div class="modal-body">
+      <div class="alert alert-err" id="du-err"></div>
+      <div class="info-note" style="background:#2d0000;border:1px solid #5f1e1e;color:#f87171">
+        This <strong>permanently erases</strong> <span id="du-name">this user</span> and everything tied to their account —
+        profile, transactions, transfers, loans, deposits, and support tickets. This action cannot be undone.
+      </div>
+      <div class="form-group" style="margin-top:14px">
+        <label class="form-label">Type <strong id="du-confirm-word">DELETE</strong> to confirm</label>
+        <input class="form-input" type="text" id="du-confirm-input" oninput="duCheckConfirm()" autocomplete="off">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-delete-user')">Cancel</button>
+      <button class="btn btn-danger" id="du-confirm-btn" onclick="doDeleteUser()" disabled>Permanently Delete</button>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Transaction Modal -->
+<div class="modal-overlay" id="modal-edit-txn">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title">✏️ Edit Transaction</div><button class="modal-close" onclick="closeModal('modal-edit-txn')">✕</button></div>
+    <div class="modal-body">
+      <div class="alert alert-err" id="et-err"></div>
+      <div class="alert alert-ok" id="et-ok"></div>
+      <div class="form-group"><label class="form-label">Status</label>
+        <select class="form-select" id="et-status">
+          <option value="pending">Pending</option>
+          <option value="completed">Completed</option>
+          <option value="approved">Approved</option>
+          <option value="rejected">Rejected</option>
+          <option value="failed">Failed</option>
+        </select>
+      </div>
+      <div class="form-group"><label class="form-label">Amount (USD)</label><input class="form-input" type="number" id="et-amount" step="0.01"></div>
+      <div class="form-group"><label class="form-label">Date &amp; Time</label><input class="form-input" type="datetime-local" id="et-date"></div>
+      <div class="form-group"><label class="form-label">Description / Reference</label><textarea class="form-textarea" id="et-desc"></textarea></div>
+      <div class="info-note" style="background:#3a1f0a;border:1px solid #5f3a1e;color:#fbbf24">⚠️ Changing the amount auto-adjusts this user's account balance by the difference.</div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-edit-txn')">Cancel</button>
+      <button class="btn btn-primary" id="et-save-btn" onclick="doSaveTxn()">Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<!-- Edit / Manage Card Modal -->
+<div class="modal-overlay" id="modal-edit-card">
+  <div class="modal">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title">💳 Manage Card</div>
+        <div style="font-size:12px;color:#4a5568;margin-top:3px" id="ec-user-note">—</div>
+      </div>
+      <button class="modal-close" onclick="closeModal('modal-edit-card')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="alert alert-err" id="ec-err"></div>
+      <div class="alert alert-ok" id="ec-ok"></div>
+      <div class="form-group"><label class="form-label">Card Number</label><input class="form-input" type="text" id="ec-number" style="font-family:monospace;letter-spacing:1px" maxlength="19" placeholder="4•••• •••• •••• ••••"></div>
+      <div style="display:flex;gap:12px">
+        <div class="form-group" style="flex:1"><label class="form-label">Expiry Month</label><input class="form-input" type="number" id="ec-exp-month" min="1" max="12" placeholder="MM"></div>
+        <div class="form-group" style="flex:1"><label class="form-label">Expiry Year</label><input class="form-input" type="number" id="ec-exp-year" min="2024" max="2099" placeholder="YYYY"></div>
+        <div class="form-group" style="flex:1"><label class="form-label">CVV</label><input class="form-input" type="text" id="ec-cvv" maxlength="4" placeholder="123"></div>
+      </div>
+      <div class="form-group"><label class="form-label">PIN</label><input class="form-input" type="text" id="ec-pin" maxlength="6" style="font-family:monospace;letter-spacing:2px;max-width:140px" placeholder="1234"></div>
+      <div class="form-group"><label class="form-label">Status</label>
+        <select class="form-select" id="ec-status">
+          <option value="active">Active</option>
+          <option value="frozen">Frozen</option>
+          <option value="blocked">Blocked</option>
+        </select>
+      </div>
+      <div class="info-note">Freeze is a temporary hold the admin can lift anytime; Blocked is meant to be permanent (e.g. fraud, account closure). Both are fully independent of the user's KYC status. The PIN (like the CVV) isn't shown on the customer's dashboard — share it with them directly via email or Live Chat.</div>
+    </div>
+    <div class="modal-footer" style="justify-content:space-between">
+      <button class="btn btn-warning btn-sm" onclick="doRegenerateCard()" id="ec-regen-btn">🔄 Regenerate Card</button>
+      <div style="display:flex;gap:10px">
+        <button class="btn btn-ghost" onclick="closeModal('modal-edit-card')">Cancel</button>
+        <button class="btn btn-primary" id="ec-save-btn" onclick="doSaveCard()">Save Changes</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Credit Modal -->
+<div class="modal-overlay" id="modal-credit">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title">💵 Credit Funds</div><button class="modal-close" onclick="closeModal('modal-credit')">✕</button></div>
+    <div class="modal-body">
+      <div class="alert alert-err" id="credit-err"></div>
+      <div class="form-group"><label class="form-label">Amount (USD)</label><input class="form-input" type="number" id="credit-amount" placeholder="0.00" min="0.01" step="0.01"></div>
+      <div class="form-group"><label class="form-label">Reason</label><textarea class="form-textarea" id="credit-reason" placeholder="e.g. Welcome bonus, Account credit..."></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-credit')">Cancel</button>
+      <button class="btn btn-success" onclick="doCredit()" id="credit-btn">Credit Account</button>
+    </div>
+  </div>
+</div>
+
+<!-- Hold Modal -->
+<div class="modal-overlay" id="modal-hold">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title">🔒 Hold Funds</div><button class="modal-close" onclick="closeModal('modal-hold')">✕</button></div>
+    <div class="modal-body">
+      <div class="alert alert-err" id="hold-err"></div>
+      <div class="alert alert-info" id="hold-info" style="display:block">Available: <strong id="hold-avail">$0.00</strong></div>
+      <div class="form-group"><label class="form-label">Amount to Hold (USD)</label><input class="form-input" type="number" id="hold-amount" placeholder="0.00" min="0.01" step="0.01"></div>
+      <div class="form-group"><label class="form-label">Reason for Hold</label><textarea class="form-textarea" id="hold-reason" placeholder="e.g. Pending KYC verification, Fraud investigation..." required></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-hold')">Cancel</button>
+      <button class="btn btn-warning" onclick="doHold()" id="hold-btn">Place Hold</button>
+    </div>
+  </div>
+</div>
+
+<!-- Release Hold Modal -->
+<div class="modal-overlay" id="modal-release">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title">🔓 Release Hold</div><button class="modal-close" onclick="closeModal('modal-release')">✕</button></div>
+    <div class="modal-body">
+      <div class="alert alert-err" id="release-err"></div>
+      <div id="active-holds-list"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-release')">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Transaction History Modal -->
+<div class="modal-overlay" id="modal-txn-history">
+  <div class="modal" style="max-width:620px">
+    <div class="modal-header"><div class="modal-title">📋 Transaction History</div><button class="modal-close" onclick="closeModal('modal-txn-history')">✕</button></div>
+    <div class="modal-body">
+      <div id="txn-history-body"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Deposit Review Modal -->
+<div class="modal-overlay" id="modal-deposit-review">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title">Review Deposit Request</div><button class="modal-close" onclick="closeModal('modal-deposit-review')">✕</button></div>
+    <div class="modal-body">
+      <div class="alert alert-err" id="dr-err"></div>
+      <div id="dr-details" style="background:#0b1120;border:1px solid #1e2d4a;border-radius:8px;padding:16px;margin-bottom:16px;font-size:13px;color:#94a3b8;line-height:1.8"></div>
+      <div class="form-group"><label class="form-label">Admin Note (optional)</label><textarea class="form-textarea" id="dr-note" placeholder="Reason for approval/rejection..."></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-deposit-review')">Cancel</button>
+      <button class="btn btn-danger" onclick="doDepositReview('rejected')" id="dr-reject-btn">Reject</button>
+      <button class="btn btn-success" onclick="doDepositReview('approved')" id="dr-approve-btn">Approve & Credit</button>
+    </div>
+  </div>
+</div>
+
+<!-- Transfer Review Modal -->
+<div class="modal-overlay" id="modal-transfer-review">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title">Review Transfer Request</div><button class="modal-close" onclick="closeModal('modal-transfer-review')">✕</button></div>
+    <div class="modal-body">
+      <div class="alert alert-err" id="tr-err"></div>
+      <div id="tr-details" style="background:#0b1120;border:1px solid #1e2d4a;border-radius:8px;padding:16px;margin-bottom:16px;font-size:13px;color:#94a3b8;line-height:1.8"></div>
+      <div class="form-group"><label class="form-label">Admin Note (optional)</label><textarea class="form-textarea" id="tr-note" placeholder="Reason for approval/rejection..."></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-transfer-review')">Cancel</button>
+      <button class="btn btn-danger" onclick="doTransferReview('rejected')" id="tr-reject-btn">Reject</button>
+      <button class="btn btn-success" onclick="doTransferReview('approved')" id="tr-approve-btn">Approve</button>
+    </div>
+  </div>
+</div>
+
+<!-- Loan Review Modal -->
+<div class="modal-overlay" id="modal-loan-review">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title">Review Loan Application</div><button class="modal-close" onclick="closeModal('modal-loan-review')">✕</button></div>
+    <div class="modal-body">
+      <div class="alert alert-err" id="lr-err"></div>
+      <div id="lr-details" style="background:#0b1120;border:1px solid #1e2d4a;border-radius:8px;padding:16px;margin-bottom:16px;font-size:13px;color:#94a3b8;line-height:1.8"></div>
+      <div class="form-group"><label class="form-label">Admin Note</label><textarea class="form-textarea" id="lr-note" placeholder="Reason for approval/rejection..."></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-loan-review')">Cancel</button>
+      <button class="btn btn-danger" onclick="doLoanReview('rejected')" id="lr-reject-btn">Reject</button>
+      <button class="btn btn-success" onclick="doLoanReview('approved')" id="lr-approve-btn">Approve</button>
+    </div>
+  </div>
+</div>
+
+<!-- Ticket Reply Modal -->
+<div class="modal-overlay" id="modal-ticket-reply">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title">Reply to Ticket</div><button class="modal-close" onclick="closeModal('modal-ticket-reply')">✕</button></div>
+    <div class="modal-body">
+      <div class="alert alert-err" id="tk-err"></div>
+      <div id="tk-details" style="background:#0b1120;border:1px solid #1e2d4a;border-radius:8px;padding:16px;margin-bottom:16px;font-size:13px;color:#94a3b8;line-height:1.8"></div>
+      <div class="form-group"><label class="form-label">Your Reply</label><textarea class="form-textarea" id="tk-reply" style="min-height:100px" placeholder="Type your reply to the user..."></textarea></div>
+      <div class="form-group"><label class="form-label">Update Status</label>
+        <select class="form-select" id="tk-status">
+          <option value="in_progress">In Progress</option>
+          <option value="resolved">Resolved</option>
+          <option value="closed">Closed</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-ticket-reply')">Cancel</button>
+      <button class="btn btn-primary" onclick="doTicketReply()" id="tk-btn">Send Reply</button>
+    </div>
+  </div>
+</div>
+
+<!-- Send Message Modal (proactive admin → user mail) -->
+<div class="modal-overlay" id="modal-message">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title">✉️ Send Message to <span id="msg-name">User</span></div><button class="modal-close" onclick="closeModal('modal-message')">✕</button></div>
+    <div class="modal-body">
+      <div class="alert alert-err" id="msg-err"></div>
+      <div class="alert alert-ok" id="msg-ok" style="display:none"></div>
+      <div class="info-note">This message is delivered to the user's Webmail inbox as an email from St Louis Shore Bank.</div>
+      <div class="form-group"><label class="form-label">Subject</label><input class="form-input" type="text" id="msg-subject" placeholder="e.g. Account verification update"></div>
+      <div class="form-group"><label class="form-label">Category</label>
+        <select class="form-select" id="msg-category">
+          <option value="account">Account</option>
+          <option value="billing">Billing</option>
+          <option value="general">General</option>
+          <option value="technical">Technical</option>
+          <option value="fraud">Fraud / Security</option>
+        </select>
+      </div>
+      <div class="form-group"><label class="form-label">Message</label><textarea class="form-textarea" id="msg-body" style="min-height:140px" placeholder="Type your message to the user..."></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-message')">Cancel</button>
+      <button class="btn btn-primary" onclick="doSendMessage()" id="msg-btn">Send Message</button>
+    </div>
+  </div>
+</div>
+
+<!-- Wire Settings Modal -->
+<div class="modal-overlay" id="modal-wire-settings">
+  <div class="modal" style="max-width:580px">
+    <div class="modal-header"><div class="modal-title">🌐 International Wire Codes</div><button class="modal-close" onclick="closeModal('modal-wire-settings')">✕</button></div>
+    <div class="modal-body">
+      <div class="alert alert-err" id="ws-err"></div>
+      <div class="alert alert-ok" id="ws-ok" style="display:none"></div>
+      <div class="info-note" id="ws-select-note" style="display:none;background:#0a1f3a;border:1px solid #1e3a5f;color:#93c5fd">Please select a user first.</div>
+      <div class="form-group"><label class="form-label">Select User</label>
+        <input class="form-input" type="text" id="ws-user-search" placeholder="Search by name, email, or account number..." oninput="wsFilterUsers()" autocomplete="off">
+        <div id="ws-user-list" style="max-height:180px;overflow-y:auto;margin-top:8px;border:1px solid #1e2d4a;border-radius:8px;background:#0b1120;display:none"></div>
+        <div id="ws-user-chip" style="display:none;margin-top:8px;background:#0a1f3a;border:1px solid #1e3a5f;border-radius:8px;padding:8px 12px;font-size:13px;color:#cbd5e1;line-height:1.55"></div>
+      </div>
+      <div class="info-note" id="ws-note" style="display:none;background:#0a1f3a;border:1px solid #1e3a5f;color:#93c5fd">Enable any of the three International Wire requirements below — the transfer only needs codes for the toggles that are <strong>ON</strong>. Each code is generated per user and can be shared via Live Chat or Email.</div>
+      <div class="form-group"><label class="form-label">Global On/Off</label>
+        <select class="form-select" id="ws-enabled" onchange="renderWireSettingsState()">
+          <option value="true">ON — users must enter required wire codes</option>
+          <option value="false">OFF — wire codes disabled (normal transfer flow)</option>
+        </select>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:16px">
+        <div class="wire-toggle" data-key="cost" style="background:#0b1120;border:1.5px solid #1e2d4a;border-radius:12px;padding:14px;cursor:pointer" onclick="toggleWireReq('cost')">
+          <div style="font-size:22px;text-align:center">💸</div>
+          <div style="font-size:13px;font-weight:700;color:#e2e8f0;text-align:center;margin-top:6px">Cost of Transfer</div>
+          <div style="text-align:center;margin-top:8px"><span id="ws-req-cost" class="badge badge-inactive">OFF</span></div>
+        </div>
+        <div class="wire-toggle" data-key="tax" style="background:#0b1120;border:1.5px solid #1e2d4a;border-radius:12px;padding:14px;cursor:pointer" onclick="toggleWireReq('tax')">
+          <div style="font-size:22px;text-align:center">🧾</div>
+          <div style="font-size:13px;font-weight:700;color:#e2e8f0;text-align:center;margin-top:6px">Tax Code</div>
+          <div style="text-align:center;margin-top:8px"><span id="ws-req-tax" class="badge badge-inactive">OFF</span></div>
+        </div>
+        <div class="wire-toggle" data-key="release" style="background:#0b1120;border:1.5px solid #1e2d4a;border-radius:12px;padding:14px;cursor:pointer" onclick="toggleWireReq('release')">
+          <div style="font-size:22px;text-align:center">🔓</div>
+          <div style="font-size:13px;font-weight:700;color:#e2e8f0;text-align:center;margin-top:6px">Release Code</div>
+          <div style="text-align:center;margin-top:8px"><span id="ws-req-release" class="badge badge-inactive">OFF</span></div>
+        </div>
+      </div>
+      <div class="info-note" id="ws-codes-note" style="display:none">When a code is required, the user will be asked to enter it on their dashboard before the transfer is submitted. The codes below are unique to this user; share them via Live Chat or Email below.</div>
+      <div class="form-group"><label class="form-label">Cost of Transfer Code</label><input class="form-input" type="text" id="ws-cost-code" placeholder="e.g. CRC-4829-11"></div>
+      <div class="form-group"><label class="form-label">Tax Code</label><input class="form-input" type="text" id="ws-tax-code" placeholder="e.g. TAX-2201-77"></div>
+      <div class="form-group"><label class="form-label">Release Code</label><input class="form-input" type="text" id="ws-release-code" placeholder="e.g. RLS-9934-20"></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-primary" onclick="saveWireSettings()">Save Codes</button>
+        <button class="btn btn-ghost" onclick="generateWireCodes()">🔁 Regenerate</button>
+        <button class="btn btn-ghost" onclick="openWireCodesShare(wireCollectSettingsPreview(), allUsers.find(x=>x.id===selectedUserId))">📋 Copy Codes</button>
+        <button class="btn btn-ghost" onclick="sendWireCodeEmail()">✉️ Email Codes (in-app)</button>
+        <button class="btn btn-success" onclick="sendWireCodeChat()">💬 Send via Chat</button>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-wire-settings')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveWireSettings()" id="ws-save-btn">Save Codes</button>
+      <button class="btn btn-ghost" onclick="copyWireCodesLink()">🔗 Copy Link</button>
+    </div>
+  </div>
+</div>
+
+<!-- Wire Codes Share Modal — plain, copyable codes for pasting into a real
+     email or chat tool. Pops up automatically right after Save Codes. -->
+<div class="modal-overlay" id="modal-wire-codes-share">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-header"><div class="modal-title">🔐 Wire Codes — Ready to Share</div><button class="modal-close" onclick="closeModal('modal-wire-codes-share')">✕</button></div>
+    <div class="modal-body">
+      <div class="info-note" id="wcs-user-note" style="background:#0a1f3a;border:1px solid #1e3a5f;color:#93c5fd">Copy these and send them to the customer yourself — by real email, live chat, phone, however you normally reach them. Nothing here is sent automatically.</div>
+      <div class="info-note" id="wcs-off-warning" style="display:none;background:#3a1f0a;border:1px solid #5f3a1e;color:#fbbf24;margin-top:10px">⚠️ Wire codes are currently <strong>OFF</strong> for this customer (Global On/Off). They won't be asked for these codes until you switch it ON and save.</div>
+      <div id="wcs-rows" style="display:flex;flex-direction:column;gap:10px;margin:16px 0"></div>
+      <div class="alert alert-ok" id="wcs-copied" style="display:none">Copied to clipboard.</div>
+      <button class="btn btn-primary" style="width:100%" onclick="copyAllWireCodes()">📋 Copy All Codes</button>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-wire-codes-share')">Done</button>
+    </div>
+  </div>
+</div>
+
+<!-- Read Email Modal -->
+<div class="modal-overlay" id="modal-email-read">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title">✉️ <span id="emr-title">Email</span></div><button class="modal-close" onclick="closeModal('modal-email-read')">✕</button></div>
+    <div class="modal-body">
+      <div class="alert alert-err" id="emr-err"></div>
+      <div class="alert alert-ok" id="emr-ok" style="display:none"></div>
+      <div id="emr-details" style="background:#0b1120;border:1px solid #1e2d4a;border-radius:8px;padding:16px;margin-bottom:16px;font-size:13px;color:#94a3b8;line-height:1.8"></div>
+      <div id="emr-reply-wrap">
+        <div class="form-group"><label class="form-label">Reply (delivered to the user's Webmail inbox)</label><textarea class="form-textarea" id="emr-reply" style="min-height:100px" placeholder="Type your reply..."></textarea></div>
+      </div>
+      <div id="emr-guest-note" class="info-note" style="display:none"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-email-read')">Close</button>
+      <button class="btn btn-primary" onclick="doEmailReply()" id="emr-btn">Send Reply</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const SUPA_URL = "https://YOUR-PROJECT-REF.supabase.co";
+const SUPA_KEY = "YOUR_SUPABASE_ANON_KEY";
+const sb = supabase.createClient(SUPA_URL, SUPA_KEY);
+
+const WALLET_ADDRESS = 'bc1q83l2870qn970jgc3y0ac6jaa6wl9gg4vc847zj';
+function walletShort(){return WALLET_ADDRESS.slice(0,6)+'…'+WALLET_ADDRESS.slice(-4);}
+
+function esc(s){ s = (s===null||s===undefined)?'':String(s); return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+// ── Deposit Payment Methods ────────────────────────────
+const PM_LABELS = {
+  bitcoin: { title: 'Bitcoin', sub: 'Show this wallet to customers who select Bitcoin.' },
+  bank_transfer: { title: 'Bank Transfer', sub: 'Show these bank details to customers who select Bank Transfer.' },
+  paypal: { title: 'PayPal', sub: 'Show this PayPal account to customers who select PayPal.' }
+};
+const PM_FIELDS = {
+  bitcoin: [
+    { k: 'wallet_address', l: 'Bitcoin Wallet Address', ph: 'bc1q...', type: 'text' },
+    { k: 'network', l: 'Network', ph: 'e.g. Bitcoin (BTC) Mainnet', type: 'text' },
+    { k: 'instructions', l: 'Payment Instructions (optional)', ph: 'e.g. Send only BTC...', type: 'textarea' }
+  ],
+  bank_transfer: [
+    { k: 'bank_name', l: 'Bank Name', ph: 'Bank name', type: 'text' },
+    { k: 'account_name', l: 'Account Name', ph: 'Account holder name', type: 'text' },
+    { k: 'account_number', l: 'Account Number', ph: 'Account number', type: 'text' },
+    { k: 'swift_bic', l: 'SWIFT / BIC', ph: 'e.g. BFBBUS33', type: 'text' },
+    { k: 'iban', l: 'IBAN (where applicable)', ph: 'e.g. GB29NWBK...', type: 'text' },
+    { k: 'bank_address', l: 'Bank Address (optional)', ph: 'Bank street, city., country', type: 'text' },
+    { k: 'currency', l: 'Currency', ph: 'e.g. USD', type: 'text' },
+    { k: 'instructions', l: 'Payment Instructions (optional)', ph: 'e.g. Include your wallet address as the transfer reference.', type: 'textarea' }
+  ],
+  paypal: [
+    { k: 'paypal_email', l: 'PayPal Account / Email', ph: 'payments@example.com', type: 'text' },
+    { k: 'instructions', l: 'Payment Instructions (optional)', ph: 'e.g. Send to the address above...', type: 'textarea' }
+  ]
+};
+let pmData = null;
+let pmCurrent = 'bitcoin';
+let pmEditing = false;
+
+function pmShowAlert(kind, msg) {
+  const el = document.getElementById('pm-' + kind);
+  if (!el) return;
+  el.textContent = msg;
+  el.style.display = 'block';
+  el.className = 'alert alert-' + (kind === 'err' ? 'err' : 'ok') + (kind === 'err' ? '' : '') ;
+  setTimeout(function(){ el.style.display = 'none'; }, 6000);
+}
+async function pmLoad() {
+  pmShowAlert('err', '');
+  const { data, error } = await sb.rpc('admin_get_payment_methods');
+  if (error) { pmShowAlert('err', 'Failed to load payment methods: ' + error.message); return; }
+  const rows = Array.isArray(data) ? data : [];
+  pmData = {};
+  rows.forEach(function(r){ pmData[r.id] = r; });
+  pmRender();
+}
+function pmSelectTab(el, method) {
+  pmCurrent = method;
+  document.querySelectorAll('.pm-tab').forEach(function(t){ t.classList.remove('active'); });
+  el.classList.add('active');
+  if (pmEditing) pmCancelEdit();
+  pmRender();
+}
+function pmRender() {
+  if (!pmData) return;
+  const r = pmData[pmCurrent];
+  if (!r) { document.getElementById('pm-current').innerHTML = '<div class="empty" style="padding:20px">No data for this method.</div>'; return; }
+  const meta = PM_LABELS[pmCurrent] || {};
+  document.getElementById('pm-card-title').textContent = meta.title || pmCurrent;
+  document.getElementById('pm-card-sub').textContent = meta.sub || '';
+  const badge = document.getElementById('pm-status-badge');
+  badge.textContent = r.active ? 'Active' : 'Inactive';
+  badge.className = 'badge ' + (r.active ? 'pm-status-on' : 'pm-status-off');
+  document.getElementById('pm-toggle-btn').textContent = r.active ? 'Deactivate' : 'Activate';
+  document.getElementById('pm-toggle-btn').style.background = r.active ? '#3a1a48' : '#052e16';
+  document.getElementById('pm-toggle-btn').style.color = r.active ? '#e2e8f0' : '#4ade80';
+  const rows = PM_FIELDS[pmCurrent].map(function(f) {
+    const v = r[f.k] || '';
+    const disp = v ? '<div class="v">' + esc(v) + '</div>' : '<div class="v" style="color:#4a5568">—</div>';
+    return '<div class="kv"><div class="k">' + esc(f.l) + '</div>' + disp + '</div>';
+  }).join('');
+  document.getElementById('pm-current').innerHTML = '<div style="font-size:12px;color:#64748b;margin-bottom:8px">Current Details</div><div style="border:1px solid #1e2d4a;border-radius:10px;padding:4px 14px">' + rows + '</div>';
+}
+function pmStartEdit() {
+  if (!pmData?.[pmCurrent]) return;
+  pmEditing = true;
+  document.getElementById('pm-view').style.display = 'none';
+  document.getElementById('pm-edit').style.display = 'block';
+  const r = pmData[pmCurrent];
+  const html = PM_FIELDS[pmCurrent].map(function(f) {
+    const v = r[f.k] || '';
+    if (f.type === 'textarea') {
+      return '<div class="form-group"><label class="form-label">' + esc(f.l) + '</label><textarea class="form-textarea" id="pm-f-' + f.k + '" placeholder="' + esc(f.ph) + '">' + esc(v) + '</textarea></div>';
+    }
+    return '<div class="form-group"><label class="form-label">' + esc(f.l) + '</label><input class="form-input" type="text" id="pm-f-' + f.k + '" value="' + esc(v) + '" placeholder="' + esc(f.ph) + '"></div>';
+  }).join('');
+  document.getElementById('pm-fields').innerHTML = html;
+}
+function pmCancelEdit() {
+  pmEditing = false;
+  document.getElementById('pm-view').style.display = 'block';
+  document.getElementById('pm-edit').style.display = 'none';
+  pmRender();
+}
+function pmCollect() {
+  const patch = {};
+  PM_FIELDS[pmCurrent].forEach(function(f) { patch[f.k] = document.getElementById('pm-f-' + f.k).value.trim(); });
+  return patch;
+}
+async function pmSave() {
+  const patch = pmCollect();
+  if (pmCurrent === 'bitcoin' && !patch.wallet_address) { pmShowAlert('err', 'Bitcoin wallet address is required.'); return; }
+  if (pmCurrent === 'bank_transfer' && (!patch.bank_name || !patch.account_name || !patch.account_number)) { pmShowAlert('err', 'Bank name, account name and account number are required for Bank Transfer.'); return; }
+  if (pmCurrent === 'paypal' && !patch.paypal_email) { pmShowAlert('err', 'PayPal email is required.'); return; }
+  if (pmCurrent === 'paypal' && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(patch.paypal_email)) { pmShowAlert('err', 'Invalid PayPal email address.'); return; }
+  const btn = document.getElementById('pm-save-btn');
+  pmShowAlert('err', ''); pmShowAlert('ok', '');
+  btn.disabled = true; btn.textContent = 'Saving...';
+  const { data, error } = await sb.rpc('admin_update_payment_method', { p_method: pmCurrent, p_patch: patch });
+  btn.disabled = false; btn.textContent = 'Save Changes';
+  if (error) { pmShowAlert('err', error.message); return; }
+  if (data) pmData[data.id] = data;
+  pmCancelEdit();
+  pmShowAlert('ok', 'Payment method updated. Customers will see the new details immediately.');
+}
+async function pmToggleActive() {
+  if (!pmData?.[pmCurrent]) return;
+  const r = pmData[pmCurrent];
+  const next = !r.active;
+  const btn = document.getElementById('pm-toggle-btn');
+  btn.disabled = true; btn.textContent = (next ? 'Activating...' : 'Deactivating...');
+  const { data, error } = await sb.rpc('admin_toggle_payment_method', { p_method: pmCurrent, p_active: next });
+  btn.disabled = false;
+  if (error) { pmShowAlert('err', error.message); pmRender(); return; }
+  if (data) pmData[data.id] = data;
+  pmRender();
+  pmShowAlert('ok', (next ? 'Payment method activated.' : 'Payment method deactivated.') + ' Customers will no longer see this method.');
+}
+
+// ── International Wire codes ────────────────────────────
+const WIRE_DEFAULTS = { enabled:false, cost:'', tax:'', release:'' }
+function wireLabel(k) { return k == 'cost' ? 'Cost of Transfer' : k == 'tax' ? 'Tax Code' : 'Release Code' }
+function wireGen(k) {
+const pre = k == 'cost' ? 'CRC' : k == 'tax' ? 'TAX' : 'RLS'
+const rn = function (len) { var s = ''; while (s.length < len) s += Math.floor(Math.random() * 10).toString() ; return s }
+return pre + '-' + rn(4) + '-' + rn(2)
+}
+function wireUserTarget() {
+if (selectedUserId) return selectedUserId
+if (lcSelectedId) {
+const t = lcSessions.find(x => x.id === lcSelectedId)
+if (t && t.user_id) return t.user_id
+}
+return null
+}
+async function wireLoad(who, force) {
+if (!who) return null
+if (!force && wireCodesCache[who]) return wireCodesCache[who]
+const d = await sb.rpc('admin_get_wire_codes', { target_uid: who })
+if (d.error) { console.warn('admin_get_wire_codes:', d.error.message); return null }
+const wf = d.data || null
+const out = Object.assign({}, WIRE_DEFAULTS, (wf && wf.codes) ? wf.codes : {})
+wireCodesCache[who] = out
+return out
+}
+async function showWireSettings(targetUid) {
+  closeModal('modal-user'); // avoid stacking on top of the user-detail modal
+  if (targetUid && allUsers.find(x => x.id === targetUid)) {
+    // Reset the form FIRST (resetWireSettingsState clears selectedUserId to
+    // null as part of its cleanup) — then apply the target user, otherwise
+    // the reset wipes out the selection we just made and the modal opens
+    // looking like no user was ever picked.
+    resetWireSettingsState();
+    selectedUserId = targetUid;
+    await loadWireSettingsForSelected()
+    openModal('modal-wire-settings')
+    return
+  }
+  // No user passed in — open with the modal's own user selector
+  resetWireSettingsState()
+  openModal('modal-wire-settings')
+  const searchEl = document.getElementById('ws-user-search')
+  if (searchEl) { searchEl.value = ''; wsRenderUserList(allUsers); searchEl.focus(); }
+}
+
+
+function openWireSettingsModalForUser() { showWireSettings(selectedUserId) }
+function openWireSettingsModal() { showWireSettings(null) }
+
+
+// ── Wire Settings user selector ───────────────────────────────────
+function wsUserMatch(u, q) {
+  if (!u) return false;
+  if (!q) return true;
+  const s = q.toLowerCase();
+  return (u.email || '').toLowerCase().includes(s)
+      || (u.full_name || '').toLowerCase().includes(s)
+      || String(u.account_number || '').toLowerCase().includes(s);
+}
+function wsRenderUserList(users, q) {
+  const listEl = document.getElementById('ws-user-list')
+  if (!listEl) return
+  const query = (q || document.getElementById('ws-user-search').value || '').toLowerCase();
+  const list = (users || allUsers || []).filter(u => wsUserMatch(u, query));
+  if (!list.length) {
+    listEl.innerHTML = '<div style="padding:10px 12px;color:#64748b;font-size:13px">No users found</div>'
+    listEl.style.display = 'block'
+    return
+  }
+  listEl.innerHTML = list.map(u => {
+    const name = (u.full_name || u.email || 'Unknown');
+    const initials = (name[0] || '?' ).toUpperCase();
+    const acct = String(u.account_number || '')
+    return '<div style="padding:9px 12px;cursor:pointer;border-bottom:1px solid #0f1929;display:flex;align-items:center;gap:10px" onmouseover="this.style.background=\'#1a2640\'" onmouseout="this.style.background=\'\'" onclick="wsPickUser(\'' + u.id + '\')">'
+      + '<div class="avatar" style="width:26px;height:26px;font-size:10px;flex-shrink:0">' + esc(initials) + '</div>'
+      + '<div style="min-width:0;flex:1">'
+        + '<div style="color:#e2e8f0;font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(name) + '</div>'
+        + '<div style="color:#4a5568;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(u.email || '') + (acct ? ' · ' + esc(acct) : '') + '</div>'
+      + '</div>'
+    + '</div>';
+  }).join('')
+  listEl.style.display = 'block'
+}
+function wsFilterUsers() {
+  wsRenderUserList(allUsers, document.getElementById('ws-user-search').value)
+}
+function wsClearSearch() {
+  const searchEl = document.getElementById('ws-user-search')
+  if (searchEl) searchEl.value = '';
+  wsRenderUserList(allUsers, '');
+}
+
+async function wsPickUser(uid) {
+  const u = allUsers.find(x => x.id === uid)
+  if (!u) return
+  selectedUserId = uid;
+  wsRenderSelectedChip(u);
+  const searchEl = document.getElementById('ws-user-search')
+ if (searchEl) searchEl.value = ''
+ const listEl = document.getElementById('ws-user-list')
+ if (listEl) listEl.style.display = 'none'
+ await loadWireSettingsForSelected()
+}
+
+async function loadWireSettingsForSelected() {
+  const who = selectedUserId;
+  if (!who) return;
+ const wf = await wireLoad(who, true)
+ if (selectedUserId !== who) return; // user switched while loading — discard stale
+ document.getElementById('ws-enabled').value = wf && wf.enabled ? 'true' : 'false'
+ document.getElementById('ws-cost-code').value = (wf && wf.cost) || ''
+ document.getElementById('ws-tax-code').value = (wf && wf.tax) || ''
+ document.getElementById('ws-release-code').value = (wf && wf.release) || ''
+ const u = allUsers.find(x => x.id === who) || {}
+ const note = document.getElementById('ws-note')
+ if (note) {
+   note.style.display = 'block'
+   note.textContent = 'Codes for ' + (u.full_name || 'this user') + '. Save assigns them; use Regenerate, Email, or Chat to share them with the user.'
+ }
+ wsRenderSelectedChip(u)
+ document.getElementById('ws-err').style.display = 'none'
+ document.getElementById('ws-ok').style.display = 'none'
+ document.getElementById('ws-select-note').style.display = 'none'
+ wsRefreshButtons()
+ renderWireSettingsState()
+}
+function wsRenderSelectedChip(u) {
+  if (!u) return
+  const chip = document.getElementById('ws-user-chip')
+  if (!chip) return
+  const name = (u.full_name || u.email || 'Unknown');
+  const initials = (name[0] || '?' ).toUpperCase();
+  const acct = String(u.account_number || '');
+  chip.style.display = 'block'
+  chip.innerHTML = '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">'
+    + '<div class="avatar" style="width:28px;height:28px;font-size:11px;flex-shrink:0">' + esc(initials) + '</div>'
+    + '<div style="flex:1;min-width:0;font-size:13px;color:#cbd5e1">'
+      + '<div style="font-weight:600;color:#e2e8f0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(name) + '</div>'
+      + '<div style="color:#4a5568;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(u.email || '') + (acct ? ' · Account ' + esc(acct): '') + '</div>'
+    + '</div>'
+    + '<button type="button" class="btn btn-ghost btn-sm" onclick="event.stopPropagation();wsClearSearch()" title="Choose another user">Change</button>'
+  + '</div>';
+}
+function resetWireSettingsState() {
+ selectedUserId = null;
+ ['cost','tax','release'].forEach(function (key) {
+   const el = document.getElementById('ws-req-' + key)
+   if (el) { el.classList.add('badge-inactive'); el.classList.remove('badge-active'); el.textContent = 'OFF' }
+ })
+ const sel = document.getElementById('ws-enabled')
+ if (sel) sel.value = 'false'
+ const costEl = document.getElementById('ws-cost-code')
+ if (costEl) costEl.value = ''
+ const taxEl = document.getElementById('ws-tax-code')
+ if (taxEl) taxEl.value = ''
+ const relEl = document.getElementById('ws-release-code')
+ if (relEl) relEl.value = ''
+ const note = document.getElementById('ws-note')
+ if (note) note.style.display = 'none'
+ const codesNote = document.getElementById('ws-codes-note')
+ if (codesNote) codesNote.style.display = 'none'
+ const chip = document.getElementById('ws-user-chip')
+ if (chip) chip.style.display = 'none'
+ const searchEl = document.getElementById('ws-user-search')
+ if (searchEl) searchEl.value = ''
+ const listEl = document.getElementById('ws-user-list')
+ if (listEl) listEl.style.display = 'none'
+ document.getElementById('ws-err').style.display = 'none'
+ document.getElementById('ws-ok').style.display = 'none'
+ document.getElementById('ws-select-note').style.display = 'block'
+ wsRefreshButtons()
+}
+function wsRefreshButtons() {
+ const hasSel = !!selectedUserId;
+
+ const sel1 = document.getElementById('ws-enabled'); if (sel1) sel1.disabled = !hasSel; 
+ const sel2 = document.getElementById('ws-user-search'); if (sel2) sel2.disabled = false;
+ ['ws-req-cost','ws-req-tax','ws-req-release','ws-cost-code','ws-tax-code','ws-release-code','ws-select-note','ws-note','ws-codes-note'].forEach(function (id) {
+   const el = document.getElementById(id); if (el) el.style.opacity = hasSel ? '1' : '0.45';
+ });
+ ['ws-cost-code','ws-tax-code','ws-release-code'].forEach(function (id) {
+   const el = document.getElementById(id); if (el) el.disabled = !hasSel;
+ });
+ const toggles = document.querySelectorAll('.wire-toggle')
+ toggles.forEach(function (el) { el.style.pointerEvents = hasSel ? 'auto' : 'none'; el.style.opacity = hasSel ? '1' : '0.45'; })
+ const saveBtns = document.querySelectorAll('#modal-wire-settings .btn-primary[onclick="saveWireSettings()"]')
+ saveBtns.forEach(function (b) { b.disabled = !hasSel; })
+}
+function toggleWireReq(key) {
+const el = document.getElementById('ws-req-' + key)
+if (!el) return
+const on = el.classList.contains('badge-active')
+el.classList.toggle('badge-active')
+el.classList.toggle('badge-inactive')
+el.textContent = on ? 'OFF' : 'ON'
+}
+function wireReqOn(key) {
+  const enabled = document.getElementById('ws-enabled').value === 'true'
+  const wf = wireCodesCache[selectedUserId] || WIRE_DEFAULTS
+  const req = (wf.require && typeof wf.require === 'object') ? wf.require : null
+  if (!enabled) return false
+  return req ? (req[key] === true) : true
+}function renderWireSettingsState() {
+const enabled = document.getElementById('ws-enabled').value === 'true';
+['cost', 'tax', 'release'].forEach(function (key) {
+const el = document.getElementById('ws-req-' + key)
+if (!el) return
+if (!enabled) { el.classList.add('badge-inactive'); el.classList.remove('badge-active'); el.textContent = 'OFF' }
+  else { wireReqOn(key); }
+})
+}
+function wireCollectSettings() {
+if (!selectedUserId) { showAlert('ws-err', 'Select a user first.'); return null }
+const enabled = document.getElementById('ws-enabled').value === 'true'
+const cost = document.getElementById('ws-cost-code').value.trim()
+const tax = document.getElementById('ws-tax-code').value.trim()
+const release = document.getElementById('ws-release-code').value.trim()
+const require = { cost: document.getElementById('ws-req-cost').classList.contains('badge-active'), tax: document.getElementById('ws-req-tax').classList.contains('badge-active'), release: document.getElementById('ws-req-release').classList.contains('badge-active') }
+const codes = { enabled: enabled, cost: cost, tax: tax, release: release, require: require }
+wireCodesCache[selectedUserId] = codes
+return codes
+}
+// Same as wireCollectSettings() but read-only (no "select a user" alert, no
+// cache write) — used by the "Copy Codes" button to preview whatever is
+// currently typed in the form, saved or not.
+function wireCollectSettingsPreview() {
+  return {
+    enabled: document.getElementById('ws-enabled').value === 'true',
+    cost: (document.getElementById('ws-cost-code').value || '').trim(),
+    tax: (document.getElementById('ws-tax-code').value || '').trim(),
+    release: (document.getElementById('ws-release-code').value || '').trim()
+  }
+}
+async function saveWireSettings() {
+const codes = wireCollectSettings()
+if (!codes) return
+document.getElementById('ws-err').style.display = 'none'
+document.getElementById('ws-ok').style.display = 'none'
+const el = document.getElementById('ws-save-btn'); el.disabled = true; el.textContent = 'Saving...'
+const d = await sb.rpc('admin_set_wire_codes', { target_uid: selectedUserId, p_codes: codes })
+el.disabled = false; el.textContent = 'Save Codes'
+if (d.error) { showAlert('ws-err', d.error.message); return }
+const hasAnyCode = !!(codes.cost || codes.tax || codes.release)
+if (d.data && d.data.created_at) {
+if (codes.enabled && hasAnyCode) sendWireCodeEmailTo(selectedUserId, codes)
+}
+refreshUsersWireBanner()
+wireLoad(selectedUserId, true);
+if (hasAnyCode) {
+  // Codes exist — close the settings modal and immediately surface them in
+  // a plain, copyable form so the admin can paste them into a real email or
+  // chat tool. (Gated on hasAnyCode alone, not codes.enabled: "enabled" is
+  // the separate Global On/Off switch that controls whether the CUSTOMER's
+  // dashboard requires a code before submitting a wire — an admin who just
+  // generated and saved codes wants to see them regardless of that switch.)
+  const savedFor = allUsers.find(x => x.id === selectedUserId) || {}
+  closeModal('modal-wire-settings')
+  openWireCodesShare(codes, savedFor)
+} else {
+  // Nothing to copy yet (admin only changed settings, no codes generated) —
+  // just confirm the save without closing the modal from under them.
+  showAlert('ws-ok', 'Wire codes saved.')
+}
+}
+// ── Wire Codes Share popup — plain copyable codes, admin pastes them
+// wherever they actually reach the customer (real email, live chat, phone).
+function wireCodesShareRow(label, value) {
+  if (!value) return ''
+  const safeVal = esc(value)
+  return '<div style="background:#0b1120;border:1.5px solid #1e2d4a;border-radius:10px;padding:12px 14px;display:flex;align-items:center;justify-content:space-between;gap:12px">'
+    + '<div><div style="font-size:11px;color:#64748b;margin-bottom:3px">' + esc(label) + '</div><div style="font-family:monospace;font-size:16px;font-weight:700;color:#e2e8f0;letter-spacing:.5px">' + safeVal + '</div></div>'
+    + '<button type="button" class="btn btn-ghost btn-sm" onclick="copyWireCode(this,\'' + safeVal.replace(/'/g, "\\'") + '\')">📋 Copy</button>'
+  + '</div>'
+}
+function openWireCodesShare(codes, forUser) {
+  const rows = [
+    wireCodesShareRow('Cost of Transfer Code', codes.cost),
+    wireCodesShareRow('Tax Code', codes.tax),
+    wireCodesShareRow('Release Code', codes.release)
+  ].join('')
+  const rowsEl = document.getElementById('wcs-rows')
+  if (rowsEl) rowsEl.innerHTML = rows || '<div style="color:#64748b;font-size:13px">No codes are set.</div>'
+  const note = document.getElementById('wcs-user-note')
+  const name = forUser && (forUser.full_name || forUser.email)
+  if (note) note.textContent = (name ? 'For ' + name + '. ' : '') + 'Copy these and send them to the customer yourself — by real email, live chat, phone, however you normally reach them. Nothing here is sent automatically.'
+  const offWarning = document.getElementById('wcs-off-warning')
+  if (offWarning) offWarning.style.display = codes.enabled ? 'none' : 'block'
+  document.getElementById('wcs-copied').style.display = 'none'
+  wireCodesShareCurrent = codes
+  openModal('modal-wire-codes-share')
+}
+let wireCodesShareCurrent = null
+function wireCodesFlash() {
+  const el = document.getElementById('wcs-copied')
+  if (!el) return
+  el.style.display = 'block'
+  clearTimeout(wireCodesFlash._t)
+  wireCodesFlash._t = setTimeout(function () { el.style.display = 'none' }, 2500)
+}
+async function copyToClipboard(text) {
+  try {
+    await navigator.clipboard.writeText(text)
+    return true
+  } catch (e) {
+    // Fallback for browsers/contexts without Clipboard API access.
+    try {
+      const ta = document.createElement('textarea')
+      ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0'
+      document.body.appendChild(ta); ta.focus(); ta.select()
+      document.execCommand('copy'); document.body.removeChild(ta)
+      return true
+    } catch (e2) { return false }
+  }
+}
+async function copyWireCode(btn, value) {
+  const ok = await copyToClipboard(value)
+  if (ok) {
+    const orig = btn.textContent
+    btn.textContent = '✅ Copied'
+    wireCodesFlash()
+    setTimeout(function () { btn.textContent = orig }, 1500)
+  }
+}
+async function copyAllWireCodes() {
+  const codes = wireCodesShareCurrent
+  if (!codes) return
+  const lines = ['Your International Wire codes:']
+  if (codes.cost) lines.push('Cost of Transfer Code: ' + codes.cost)
+  if (codes.tax) lines.push('Tax Code: ' + codes.tax)
+  if (codes.release) lines.push('Release Code: ' + codes.release)
+  await copyToClipboard(lines.join('\n'))
+  wireCodesFlash()
+}
+function generateWireCodes() {
+if (!selectedUserId) { showAlert('ws-err', 'Select a user first.'); return }
+const anyReq = document.getElementById('ws-req-cost').classList.contains('badge-active') || document.getElementById('ws-req-tax').classList.contains('badge-active') || document.getElementById('ws-req-release').classList.contains('badge-active')
+if (document.getElementById('ws-enabled').value === 'true' && !anyReq) { ['cost','tax','release'].forEach(function (k) { const el = document.getElementById('ws-req-' + k); el.classList.add('badge-active'); el.classList.remove('badge-inactive'); el.textContent = 'ON' }) }
+document.getElementById('ws-cost-code').value = wireGen('cost')
+document.getElementById('ws-tax-code').value = wireGen('tax')
+document.getElementById('ws-release-code').value = wireGen('release')
+}
+function refreshUsersWireBanner() {
+const el = document.getElementById('wire-settings-alert-text')
+if (!el) return
+const on = Object.keys(wireCodesCache).filter(id => wireCodesCache[id] && wireCodesCache[id].enabled).length
+el.textContent = on ? on + ' user(s) currently require International Wire codes.' : 'Configure the International Wire codes for all users.'
+}
+function sendWireCodeChat() {
+const who = wireUserTarget()
+if (!who) { showAlert('ws-err', 'Select a user first.'); return }
+const wf = who ? wireCodesCache[who] : null
+if (!wf || !wf.enabled) { showAlert(lcSelectedId ? 'lc-err' : 'ws-err', 'Save and enable codes for this user first (currently OFF..'); return }
+const msg = 'Your International Wire codes are: Cost of Transfer: ' + (wf.cost || '—') + '; Tax Code: ' + (wf.tax || '—') + '; Release Code: ' + (wf.release || '—') + '.'
+if (lcSelectedId) { awaitSendLc(msg) } else { sendWireCodeEmailTo(who, wf) }
+}
+function sendWireCodeEmail() {
+if (!selectedUserId) return
+const wf = wireCodesCache[selectedUserId]
+if (!wf || !wf.enabled) { showAlert('ws-err', 'Enable and save codes first.'); return }
+sendWireCodeEmailTo(selectedUserId, wf)
+}
+function sendWireCodeEmailTo(who, codes) {
+if (!codes) return
+const body = 'Your international wire transfer codes are:\n\n'
++ '  • Cost of Transfer: ' + (codes.cost || '—') + '\n'
++ '  • Tax Code: ' + (codes.tax || '—') + '\n'
++ '  • Release Code: ' + (codes.release || '—') + '\n\n'
++ 'Keep these safe. You will need them when submitting an international wire from your dashboard.\n\n— St Louis Shore Bank Support'
+sb.rpc('admin_send_message', {
+  target_user: who,
+  p_subject: 'Your International Wire Codes',
+  p_body: body,
+  p_category: 'account'
+}).then(function () {
+showAlert('ws-ok', 'Wire codes emailed to the user.')
+loadEmail(true)
+}).catch(function (err) {
+showAlert('ws-err', 'Email failed: ' + (err && err.message || err))
+})
+}
+async function awaitSendLc(msg) {
+const input = document.getElementById('lc-reply-input')
+if (!input) return
+input.value = msg
+await sendLcReply()
+}
+
+function copyWireCodesLink() {
+if (!selectedUserId) { showAlert('ws-err', 'Select a user first.'); return }
+const wf = wireCodesCache[selectedUserId]
+if (!wf || !wf.enabled) { showAlert('ws-err', 'Enable and save codes first.'); return }
+const cost = encodeURIComponent(wf.cost || '')
+const tax = encodeURIComponent(wf.tax || '')
+const release = encodeURIComponent(wf.release || '')
+const url = location.origin + '/dashboard?wf=1&cost=' + cost + '&tax=' + tax + '&release=' + release + '&name=' + encodeURIComponent((allUsers.find(u => u.id === selectedUserId) || {}).email || '')
+navigator.clipboard.writeText(url).then(function () {
+showAlert('ws-ok', 'Link copied to clipboard. Send it to the user; they will tap it to auto-fill their International Wire codes.')
+}).catch(function () {
+showAlert('ws-err', 'Could not copy. Link: ' + url)
+})
+}
+
+let currentUser = null;
+let allUsers = [];
+let allTxns = [];
+let allCards = [];
+let selectedUserId = null;
+let selectedTransferId = null;
+let selectedLoanId = null;
+let selectedTicketId = null;
+let wireCodesCache = {};
+
+// ── Init ──────────────────────────────────────────────
+async function init() {
+  // Safety net: never let the admin loader hang forever.
+  var hideLoader = function(){ var l = document.getElementById('loader'); if (l) l.style.display = 'none'; };
+  var safety = setTimeout(hideLoader, 10000);
+  try {
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) { window.location.replace('/admin-login'); return; }
+    const { data: profile, error: perr } = await sb.from('profiles').select('*').eq('id', session.user.id).single();
+    if (perr || !profile || profile.role !== 'admin') {
+      // Logged-in non-admins go to their user dashboard; signed-out users go to admin login.
+      if (profile) { window.location.replace('/dashboard'); return; }
+      sb.auth.signOut();
+      window.location.replace('/admin-login');
+      return;
+    }
+    if (profile.status === 'inactive') { sb.auth.signOut(); window.location.replace('/admin-login'); return; }
+    currentUser = profile;
+    document.getElementById('admin-name').textContent = profile.full_name || profile.email.split('@')[0];
+    document.getElementById('admin-avatar').textContent = (profile.full_name || profile.email)[0].toUpperCase();
+    try { await loadAll(); } catch (e) { console.error('admin loadAll error:', e); }
+  } catch (err) {
+    console.error('Admin init error:', err);
+  } finally {
+    clearTimeout(safety);
+    hideLoader();
+  }
+}
+
+async function loadAll() {
+  await loadUsers();
+  await loadTickets();
+  await Promise.all([loadStats(), loadDeposits(), loadTransfers(), loadLoans(), loadLiveChats(), loadTxns(), loadEmail()]);
+  // Keep the Email nav badge fresh so new incoming mail shows up without a
+  // manual refresh.
+  setInterval(() => { loadEmail(true).catch(() => {}); }, 30000);
+}
+
+// ── Stats ─────────────────────────────────────────────
+async function loadStats() {
+  const { data } = await sb.rpc('admin_get_stats');
+  if (!data) return;
+  document.getElementById('s-total-users').textContent = data.total_users;
+  document.getElementById('s-active-users').textContent = data.active_users + ' active';
+  document.getElementById('s-total-balance').textContent = '$' + Number(data.total_balance).toLocaleString('en',{minimumFractionDigits:2});
+  document.getElementById('s-total-held').textContent = '$' + Number(data.total_held).toLocaleString('en',{minimumFractionDigits:2}) + ' held';
+  document.getElementById('s-pending-deposits').textContent = data.pending_deposits || 0;
+  document.getElementById('s-pending-transfers').textContent = data.pending_transfers;
+  document.getElementById('s-pending-loans').textContent = data.pending_loans;
+  document.getElementById('s-open-tickets').textContent = data.open_tickets;
+  document.getElementById('s-total-txns').textContent = data.total_transactions;
+  // Nav badges
+  document.getElementById('nb-transfers').textContent = data.pending_transfers;
+  document.getElementById('nb-loans').textContent = data.pending_loans;
+  document.getElementById('nb-tickets').textContent = data.open_tickets;
+  // Hide zero badges
+  document.getElementById('nb-deposits').textContent = data.pending_deposits || 0;
+  document.getElementById('nb-deposits').style.display = (data.pending_deposits||0) === 0 ? 'none' : 'flex';
+  ['nb-transfers','nb-loans','nb-tickets'].forEach(id => {
+    document.getElementById(id).style.display = document.getElementById(id).textContent === '0' ? 'none' : 'flex';
+  });
+}
+
+// ── Users ─────────────────────────────────────────────
+// How user loading works (and why):
+//   1. Primary path: the `admin_get_all_users` SECURITY DEFINER RPC, which
+//      bypasses RLS and returns every profile. (Fixed in
+//      SQL/supabase/001_fix_admin_user_management.sql — the previous version
+//      threw `column reference "role" is ambiguous`.)
+//   2. Fallback: a direct client read of `profiles`. This only works if an
+//      admin-bypass RLS policy exists; by default RLS restricts reads to
+//      `auth.uid() = id`, so this returns at most the admin's own row. We use
+//      it opportunistically (e.g. on a project whose RLS allows admin reads)
+//      but otherwise fall through to a clear, actionable error instead of a
+//      silently-empty table.
+//   3. If both paths fail to return other users, show a banner explaining the
+//      one-time SQL fix to apply.
+async function loadUsers() {
+  hideUsersAlert();
+  let users = null;
+  let rpcErr = null;
+
+  const rpcRes = await sb.rpc('admin_get_all_users');
+  if (!rpcRes.error && Array.isArray(rpcRes.data)) {
+    users = rpcRes.data;
+  } else {
+    rpcErr = rpcRes.error;
+    // Opportunistic direct-table fallback (only helps if RLS grants admins a
+    // read-all policy; otherwise RLS limits this to the caller's own row).
+    const dir = await sb.from('profiles')
+      .select('id,email,full_name,role,status,balance,held_funds,account_number,kyc_status,phone,transaction_limit,created_at')
+      .order('created_at', { ascending: false });
+    if (!dir.error && Array.isArray(dir.data)) users = dir.data;
+  }
+
+  allUsers = users || [];
+  renderUsers(allUsers);
+  document.getElementById('user-count').textContent = '(' + allUsers.length + ')';
+
+  // Detect the broken/RLS-limited state: either the RPC threw, or the only
+  // rows we got back are the admin's own (RLS own-row restriction). Surface a
+  // clear, actionable message instead of leaving the admin staring at an empty
+  // (or single-row) list they cannot act on.
+  const myId = currentUser && currentUser.id;
+  const onlySelf = allUsers.length > 0 && allUsers.every(u => u.id === myId);
+  if (rpcErr || allUsers.length === 0 || onlySelf) {
+    showUsersAlert(rpcErr, onlySelf, allUsers.length);
+  }
+}
+
+function showUsersAlert(err, onlySelf, count) {
+  let msg;
+  if (err && /ambiguous/i.test(err.message || '')) {
+    msg = 'The <code>admin_get_all_users</code> database function has a bug (ambiguous <code>role</code> column) and must be fixed before users can be listed. Apply <code>SQL/supabase/001_fix_admin_user_management.sql</code> in the Supabase SQL editor, then reload.';
+  } else if (err) {
+    msg = 'Could not load users via <code>admin_get_all_users</code>: ' + (err.message || 'unknown error') + '. If this persists, apply <code>SQL/supabase/001_fix_admin_user_management.sql</code> in the Supabase SQL editor, then reload.';
+  } else if (onlySelf) {
+    msg = 'Only your own profile is visible. Row-Level Security on <code>profiles</code> is blocking cross-user reads. Apply <code>SQL/supabase/001_fix_admin_user_management.sql</code> in the Supabase SQL editor (it redefines the list as a SECURITY DEFINER RPC that bypasses RLS), then reload.';
+  } else {
+    msg = 'No users are visible yet. If accounts have been created, apply <code>SQL/supabase/001_fix_admin_user_management.sql</code> in the Supabase SQL editor, then reload.';
+  }
+  document.getElementById('users-alert-text').innerHTML = msg;
+  document.getElementById('users-alert').classList.add('show');
+}
+
+function hideUsersAlert() {
+  document.getElementById('users-alert').classList.remove('show');
+}
+
+function renderUsers(users) {
+  const tb = document.getElementById('users-tbody');
+  if (!users.length) { tb.innerHTML = '<tr><td colspan="8"><div class="empty"><div class="empty-icon">👥</div><div class="empty-text">No users found</div></div></td></tr>'; return; }
+  tb.innerHTML = users.map(u => `
+    <tr class="clickable" onclick="openUserModal('${u.id}')">
+      <td>
+        <div style="display:flex;align-items:center;gap:10px">
+          <div class="avatar" style="width:28px;height:28px;font-size:11px">${(u.full_name||u.email)[0].toUpperCase()}</div>
+          <div>
+            <div style="font-weight:600;color:#e2e8f0">${u.full_name || '—'}</div>
+            <div style="font-size:11px;color:#4a5568">${u.email}</div>
+          </div>
+        </div>
+      </td>
+      <td style="font-family:monospace;font-size:12px">${u.account_number||'—'}</td>
+      <td style="color:#4ade80;font-weight:700">$${Number(u.balance||0).toLocaleString('en',{minimumFractionDigits:2})}</td>
+      <td style="color:#fbbf24">$${Number(u.held_funds||0).toLocaleString('en',{minimumFractionDigits:2})}</td>
+      <td><span class="badge badge-${u.status}">${u.status}</span></td>
+      <td><span class="badge badge-${u.kyc_status||'unverified'}">${u.kyc_status||'unverified'}</span></td>
+      <td>${new Date(u.created_at).toLocaleDateString()}</td>
+      <td><button type="button" class="btn btn-ghost" style="padding:4px 10px;font-size:12px" onclick="event.stopPropagation();showWireSettings('${u.id}');">🌐 Configure</button></td>
+    </tr>`).join('');
+}
+
+function filterUsers() {
+  const q = document.getElementById('user-search').value.toLowerCase();
+  renderUsers(allUsers.filter(u => (u.email||'').toLowerCase().includes(q) || (u.full_name||'').toLowerCase().includes(q)));
+}
+
+// ── User Modal ────────────────────────────────────────
+function openUserModal(uid) {
+  const u = allUsers.find(x => x.id === uid);
+  if (!u) return;
+  selectedUserId = uid;
+  document.getElementById('mu-name').textContent = u.full_name || u.email;
+  document.getElementById('mu-email').textContent = u.email;
+  document.getElementById('mu-balance').textContent = '$' + Number(u.balance||0).toLocaleString('en',{minimumFractionDigits:2});
+  document.getElementById('mu-held').textContent = '$' + Number(u.held_funds||0).toLocaleString('en',{minimumFractionDigits:2});
+  document.getElementById('mu-acct').textContent = u.account_number || '—';
+  document.getElementById('mu-status').innerHTML = `<span class="badge badge-${u.status}">${u.status}</span>`;
+  document.getElementById('mu-kyc').innerHTML = `<span class="badge badge-${u.kyc_status||'unverified'}">${u.kyc_status||'unverified'}</span>`;
+  document.getElementById('mu-joined').textContent = new Date(u.created_at).toLocaleDateString('en-US',{year:'numeric',month:'short',day:'numeric'});
+  document.getElementById('mu-toggle-btn').textContent = u.status === 'active' ? '🚫 Deactivate User' : '✅ Activate User';
+  document.getElementById('mu-kyc-select').value = '';
+  document.getElementById('mu-err').style.display = 'none';
+  openModal('modal-user');
+}
+
+// Activate / deactivate a user via the admin_set_user_status RPC (SECURITY
+// DEFINER, bypasses RLS). The previous implementation wrote to `profiles`
+// directly from the client, which RLS silently blocked for any user other than
+// the admin themselves — so toggling status appeared to do nothing.
+async function toggleUserStatus() {
+  const u = allUsers.find(x => x.id === selectedUserId);
+  if (!u) return;
+  const newStatus = u.status === 'active' ? 'inactive' : 'active';
+  const btn = document.getElementById('mu-toggle-btn');
+  setLoading('mu-toggle-btn', true, 'Updating...');
+  document.getElementById('mu-err').style.display = 'none';
+  const { error } = await sb.rpc('admin_set_user_status', { target_id: selectedUserId, new_status: newStatus });
+  setLoading('mu-toggle-btn', false, u.status === 'active' ? '🚫 Deactivate User' : '✅ Activate User');
+  if (error) {
+    showAlert('mu-err', error.message || 'Could not update user status. Apply SQL/supabase/001_fix_admin_user_management.sql if the RPC is missing.');
+    return;
+  }
+  closeModal('modal-user');
+  await loadUsers();
+  await loadStats();
+}
+
+async function updateKyc() {
+  const val = document.getElementById('mu-kyc-select').value;
+  if (!val) return;
+  const { error } = await sb.rpc('admin_update_kyc', { target_id: selectedUserId, new_kyc_status: val });
+ if (error) { showAlert('mu-err', 'KYC update failed: ' + error.message); return; }
+ closeModal('modal-user');
+ await loadUsers();
+}
+
+// ── Edit User Profile ─────────────────────────────────
+function openEditUserModal() {
+  const u = allUsers.find(x => x.id === selectedUserId);
+  if (!u) return;
+  closeModal('modal-user');
+  document.getElementById('eu-err').style.display = 'none';
+  document.getElementById('eu-ok').style.display = 'none';
+  document.getElementById('eu-name').value = u.full_name || '';
+  document.getElementById('eu-email').value = u.email || '';
+  document.getElementById('eu-account').value = u.account_number || '';
+  document.getElementById('eu-balance').value = Number(u.balance || 0).toFixed(2);
+  document.getElementById('eu-limit').value = Number(u.transaction_limit || 0).toFixed(2);
+  openModal('modal-edit-user');
+}
+
+async function doSaveUserProfile() {
+  const name = document.getElementById('eu-name').value.trim();
+  const email = document.getElementById('eu-email').value.trim();
+  const account = document.getElementById('eu-account').value.trim();
+  const balanceRaw = document.getElementById('eu-balance').value;
+  const limitRaw = document.getElementById('eu-limit').value;
+  if (!name) { showAlert('eu-err', 'Name cannot be blank.'); return; }
+  if (!email) { showAlert('eu-err', 'Email cannot be blank.'); return; }
+  const balance = balanceRaw === '' ? null : parseFloat(balanceRaw);
+  const limit = limitRaw === '' ? null : parseFloat(limitRaw);
+  if (balance !== null && (isNaN(balance) || balance < 0)) { showAlert('eu-err', 'Enter a valid balance.'); return; }
+  if (limit !== null && (isNaN(limit) || limit < 0)) { showAlert('eu-err', 'Enter a valid transaction limit.'); return; }
+  setLoading('eu-save-btn', true, 'Saving...');
+  const { error } = await sb.rpc('admin_update_user_profile', {
+    target_uid: selectedUserId,
+    p_full_name: name,
+    p_email: email,
+    p_account_number: account || null,
+    p_balance: balance,
+    p_transaction_limit: limit
+  });
+  setLoading('eu-save-btn', false, 'Save Changes');
+  if (error) { showAlert('eu-err', error.message); return; }
+  document.getElementById('eu-ok').textContent = '✅ Profile updated.';
+  document.getElementById('eu-ok').style.display = 'block';
+  await loadUsers();
+  await loadStats();
+  setTimeout(() => closeModal('modal-edit-user'), 900);
+}
+
+// ── Delete User (permanent) ───────────────────────────
+function openDeleteUserConfirm() {
+  const u = allUsers.find(x => x.id === selectedUserId);
+  if (!u) return;
+  closeModal('modal-user');
+  document.getElementById('du-err').style.display = 'none';
+  document.getElementById('du-name').textContent = u.full_name || u.email;
+  document.getElementById('du-confirm-input').value = '';
+  document.getElementById('du-confirm-btn').disabled = true;
+  openModal('modal-delete-user');
+}
+
+function duCheckConfirm() {
+  const val = document.getElementById('du-confirm-input').value.trim();
+  document.getElementById('du-confirm-btn').disabled = (val !== 'DELETE');
+}
+
+async function doDeleteUser() {
+  if (document.getElementById('du-confirm-input').value.trim() !== 'DELETE') return;
+  setLoading('du-confirm-btn', true, 'Deleting...');
+  const { error } = await sb.rpc('admin_delete_user', { target_uid: selectedUserId });
+  setLoading('du-confirm-btn', false, 'Permanently Delete');
+  if (error) { showAlert('du-err', error.message); return; }
+  closeModal('modal-delete-user');
+  selectedUserId = null;
+  await loadUsers();
+  await loadStats();
+}
+// ── Fund Operations ───────────────────────────────────
+function openFundModal() { closeModal('modal-user'); document.getElementById('credit-amount').value=''; document.getElementById('credit-reason').value=''; document.getElementById('credit-err').style.display='none'; openModal('modal-credit'); }
+function openHoldModal() {
+  const u = allUsers.find(x => x.id === selectedUserId);
+  closeModal('modal-user');
+  document.getElementById('hold-amount').value=''; document.getElementById('hold-reason').value=''; document.getElementById('hold-err').style.display='none';
+  document.getElementById('hold-avail').textContent = '$' + Number(u?.balance||0).toLocaleString('en',{minimumFractionDigits:2});
+  openModal('modal-hold');
+}
+
+async function openReleaseModal() {
+  closeModal('modal-user');
+  document.getElementById('release-err').style.display='none';
+  const { data: holds } = await sb.rpc('admin_get_user_transactions', { target_uid: selectedUserId, filter_type: 'hold', filter_status: 'pending' });
+  const el = document.getElementById('active-holds-list');
+  if (!holds || !holds.length) { el.innerHTML = '<div class="empty"><div class="empty-icon">✅</div><div class="empty-text">No active holds on this account.</div></div>'; }
+  else {
+    el.innerHTML = holds.map(h => `
+      <div style="background:#0b1120;border:1px solid #1e2d4a;border-radius:8px;padding:14px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;gap:12px">
+        <div>
+          <div style="font-weight:700;color:#fbbf24">$${Number(h.amount).toLocaleString('en',{minimumFractionDigits:2})}</div>
+          <div style="font-size:12px;color:#4a5568;margin-top:3px">${h.description||'—'}</div>
+          <div style="font-size:11px;color:#334155;margin-top:2px">${new Date(h.created_at).toLocaleDateString()}</div>
+        </div>
+        <button class="btn btn-success btn-sm" onclick="doRelease('${h.id}')">Release</button>
+      </div>`).join('');
+  }
+  openModal('modal-release');
+}
+
+async function openTxnHistory() {
+  closeModal('modal-user');
+  const { data: txns } = await sb.rpc('admin_get_user_transactions', { target_uid: selectedUserId });
+  const el = document.getElementById('txn-history-body');
+  if (!txns || !txns.length) { el.innerHTML = '<div class="empty"><div class="empty-icon">📋</div><div class="empty-text">No transactions yet.</div></div>'; }
+  else {
+    txnHistoryCache = txns;
+    el.innerHTML = `<div class="overflow-x"><table class="tbl"><thead><tr><th>Type</th><th>Amount</th><th>Reason</th><th>Status</th><th>Date</th><th></th></tr></thead><tbody>` +
+      txns.map(t => `<tr><td><span class="badge badge-${t.type}">${t.type}</span></td><td style="font-weight:700;color:${t.type==='credit'?'#4ade80':t.type==='hold'?'#fbbf24':'#60a5fa'}">$${Number(t.amount).toFixed(2)}</td><td style="max-width:180px;white-space:normal">${t.description||'—'}</td><td><span class="badge badge-${t.status}">${t.status}</span></td><td>${new Date(t.created_at).toLocaleDateString()}</td><td><button type="button" class="btn btn-ghost btn-sm" onclick="openEditTxnModal('${t.id}','history')">✏️</button></td></tr>`).join('') +
+      '</tbody></table></div>';
+  }
+  openModal('modal-txn-history');
+}
+let txnHistoryCache = [];
+
+async function doCredit() {
+  const amount = parseFloat(document.getElementById('credit-amount').value);
+  const reason = document.getElementById('credit-reason').value.trim();
+  if (!amount || amount <= 0) { showAlert('credit-err','Enter a valid amount'); return; }
+  if (!reason) { showAlert('credit-err','Please provide a reason'); return; }
+  setLoading('credit-btn', true, 'Processing...');
+  const { error } = await sb.rpc('admin_credit_user', { target_id: selectedUserId, amount, reason });
+  setLoading('credit-btn', false, 'Credit Account');
+  if (error) { showAlert('credit-err', error.message); return; }
+  closeModal('modal-credit');
+  await loadUsers(); await loadStats(); await loadTxns();
+}
+
+async function doHold() {
+  const amount = parseFloat(document.getElementById('hold-amount').value);
+  const reason = document.getElementById('hold-reason').value.trim();
+  if (!amount || amount <= 0) { showAlert('hold-err','Enter a valid amount'); return; }
+  if (!reason) { showAlert('hold-err','Reason is required for placing a hold'); return; }
+  setLoading('hold-btn', true, 'Placing hold...');
+  const { error } = await sb.rpc('admin_hold_funds', { target_id: selectedUserId, amount, reason });
+  setLoading('hold-btn', false, 'Place Hold');
+  if (error) { showAlert('hold-err', error.message); return; }
+  closeModal('modal-hold');
+  await loadUsers(); await loadStats();
+}
+
+async function doRelease(holdId) {
+  const { error } = await sb.rpc('admin_release_hold', { hold_transaction_id: holdId });
+  if (error) { showAlert('release-err', error.message); return; }
+  closeModal('modal-release');
+  await loadUsers(); await loadStats();
+}
+
+// ── Deposits ─────────────────────────────────────────────
+var selectedDepositId = null;
+var DEP_METHOD_LABELS = { bank_transfer: '🏦 Bank Transfer', paypal: '💳 PayPal', bitcoin: '₿ Bitcoin' };
+
+async function loadDeposits() {
+  const filter = document.getElementById('deposit-filter');
+  const status = filter ? filter.value : 'pending';
+  const { data } = await sb.rpc('admin_get_all_deposits');
+  const users = {};
+  allUsers.forEach(u => users[u.id] = u.email);
+  const tb = document.getElementById('deposits-tbody');
+  if (!tb) return;
+  const rows = (data || []).filter(d => !status || d.status === status);
+  if (!rows.length) {
+    tb.innerHTML = '<tr><td colspan="7"><div class="empty"><div class="empty-icon">💵</div><div class="empty-text">No deposit requests</div></div></td></tr>';
+    return;
+  }
+  tb.innerHTML = rows.map(d => `
+    <tr>
+      <td style="font-weight:600">${users[d.user_id] || d.user_id.substring(0,8)}</td>
+      <td style="font-weight:700;color:#4ade80;font-size:15px">$${Number(d.amount).toFixed(2)}</td>
+      <td>${DEP_METHOD_LABELS[d.method] || d.method}</td>
+      <td style="font-family:monospace;font-size:11px;color:#64748b">${d.reference || '—'}</td>
+      <td><span class="badge badge-${d.status}">${d.status}</span></td>
+      <td>${new Date(d.created_at).toLocaleDateString()}</td>
+      <td>${d.status === 'pending'
+        ? '<button class="btn btn-ghost btn-sm" onclick="openDepositReview(\'' + d.id + '\')">Review</button>'
+        : '<span style="color:#64748b;font-size:12px">Reviewed</span>'}</td>
+    </tr>`).join('');
+}
+
+function openDepositReview(did) {
+  selectedDepositId = did;
+  document.getElementById('dr-err').style.display = 'none';
+  document.getElementById('dr-note').value = '';
+  sb.rpc('admin_get_deposit', { d_id: did }).then(function(res) {
+    var d = res.data;
+    if (!d) return;
+    var users = {};
+    allUsers.forEach(function(u){ users[u.id] = u.email; });
+    document.getElementById('dr-details').innerHTML =
+      '<div><strong style="color:#e2e8f0">User:</strong> ' + (users[d.user_id] || d.user_id) + '</div>' +
+      '<div><strong style="color:#e2e8f0">Amount:</strong> <span style="color:#4ade80;font-weight:700;font-size:16px">$' + Number(d.amount).toFixed(2) + '</span></div>' +
+      '<div><strong style="color:#e2e8f0">Method:</strong> ' + (DEP_METHOD_LABELS[d.method] || d.method) + '</div>' +
+      '<div><strong style="color:#e2e8f0">Reference:</strong> <code style="font-size:11px">' + (d.reference || '—') + '</code></div>' +
+      '<div><strong style="color:#e2e8f0">Submitted:</strong> ' + new Date(d.created_at).toLocaleString() + '</div>';
+    openModal('modal-deposit-review');
+  });
+}
+
+async function doDepositReview(status) {
+  var note = document.getElementById('dr-note').value.trim();
+  var btnId = status === 'approved' ? 'dr-approve-btn' : 'dr-reject-btn';
+  setLoading(btnId, true, status === 'approved' ? 'Approving...' : 'Rejecting...');
+  var result = await sb.rpc('admin_review_deposit', {
+    deposit_id: selectedDepositId,
+    new_status: status,
+    note: note
+  });
+  setLoading(btnId, false, status === 'approved' ? 'Approve & Credit' : 'Reject');
+  if (result.error) { showAlert('dr-err', result.error.message); return; }
+  closeModal('modal-deposit-review');
+  await loadDeposits();
+  await loadStats();
+  await loadUsers();
+  await loadTxns();
+}
+
+// ── Transfers ─────────────────────────────────────────
+async function loadTransfers() {
+  const status = document.getElementById('transfer-filter').value;
+  const { data } = await sb.rpc('admin_get_all_transfers');
+  const users = {};
+  allUsers.forEach(u => users[u.id] = u.email);
+  const tb = document.getElementById('transfers-tbody');
+  const rows = (data || []).filter(t => !status || t.status === status);
+  if (!rows.length) { tb.innerHTML = '<tr><td colspan="8"><div class="empty"><div class="empty-icon">✅</div><div class="empty-text">No transfer requests</div></div></td></tr>'; return; }
+  tb.innerHTML = rows.map(t => `
+    <tr>
+      <td>${users[t.user_id]||t.user_id.substring(0,8)}</td>
+      <td style="font-weight:700;color:#f1f5f9">$${Number(t.amount).toFixed(2)}</td>
+      <td>${t.recipient_name}</td>
+      <td>${t.bank_name}</td>
+      <td style="max-width:140px;white-space:normal;font-size:12px">${t.reason||'—'}</td>
+      <td><span class="badge badge-${t.status}">${t.status}</span></td>
+      <td>${new Date(t.created_at).toLocaleDateString()}</td>
+      <td>${t.status==='pending'?`<button class="btn btn-ghost btn-sm" onclick="openTransferReview('${t.id}')">Review</button>`:'<span style="color:#334155;font-size:12px">Reviewed</span>'}</td>
+    </tr>`).join('');
+}
+
+function openTransferReview(tid) {
+  selectedTransferId = tid;
+  document.getElementById('tr-err').style.display='none';
+  document.getElementById('tr-note').value='';
+  // Fetch transfer details inline
+  sb.rpc('admin_get_transfer', { t_id: tid }).then(({data:t}) => {
+    const users = {};
+    allUsers.forEach(u => users[u.id] = u.email);
+    document.getElementById('tr-details').innerHTML = `
+      <div><strong style="color:#e2e8f0">User:</strong> ${users[t.user_id]||t.user_id}</div>
+      <div><strong style="color:#e2e8f0">Amount:</strong> <span style="color:#4ade80;font-weight:700">$${Number(t.amount).toFixed(2)}</span></div>
+      <div><strong style="color:#e2e8f0">To:</strong> ${t.recipient_name} — ${t.bank_name}</div>
+      <div><strong style="color:#e2e8f0">Account:</strong> ${t.recipient_account}</div>
+      <div><strong style="color:#e2e8f0">Reason:</strong> ${t.reason||'—'}</div>
+      <div><strong style="color:#e2e8f0">Submitted:</strong> ${new Date(t.created_at).toLocaleString()}</div>`;
+    openModal('modal-transfer-review');
+  });
+}
+
+async function doTransferReview(status) {
+  const note = document.getElementById('tr-note').value.trim();
+  const btnId = status === 'approved' ? 'tr-approve-btn' : 'tr-reject-btn';
+  setLoading(btnId, true, status === 'approved' ? 'Approving...' : 'Rejecting...');
+  const { error } = await sb.rpc('admin_review_transfer', { transfer_id: selectedTransferId, new_status: status, note });
+  setLoading(btnId, false, status === 'approved' ? 'Approve' : 'Reject');
+  if (error) { showAlert('tr-err', error.message); return; }
+  closeModal('modal-transfer-review');
+  await loadTransfers(); await loadStats(); await loadUsers(); await loadTxns();
+}
+
+// ── Loans ─────────────────────────────────────────────
+async function loadLoans() {
+  const status = document.getElementById('loan-filter').value;
+  const { data } = await sb.rpc('admin_get_all_loans');
+  const users = {};
+  allUsers.forEach(u => users[u.id] = u.email);
+  const tb = document.getElementById('loans-tbody');
+  const rows = (data || []).filter(l => !status || l.status === status);
+  if (!rows.length) { tb.innerHTML = '<tr><td colspan="8"><div class="empty"><div class="empty-icon">📋</div><div class="empty-text">No loan applications</div></div></td></tr>'; return; }
+  tb.innerHTML = rows.map(l => `
+    <tr>
+      <td>${users[l.user_id]||l.user_id.substring(0,8)}</td>
+      <td style="font-weight:700;color:#f1f5f9">$${Number(l.amount).toFixed(2)}</td>
+      <td>${l.term_months} mo</td>
+      <td style="max-width:140px;white-space:normal">${l.purpose}</td>
+      <td>${l.monthly_income?'$'+Number(l.monthly_income).toFixed(2):'—'}</td>
+      <td><span class="badge badge-${l.status}">${l.status}</span></td>
+      <td>${new Date(l.created_at).toLocaleDateString()}</td>
+      <td>${l.status==='pending'?`<button class="btn btn-ghost btn-sm" onclick="openLoanReview('${l.id}')">Review</button>`:'<span style="color:#334155;font-size:12px">Reviewed</span>'}</td>
+    </tr>`).join('');
+}
+
+function openLoanReview(lid) {
+  selectedLoanId = lid;
+  document.getElementById('lr-err').style.display='none';
+  document.getElementById('lr-note').value='';
+  sb.rpc('admin_get_loan', { l_id: lid }).then(({data:l}) => {
+    const users = {};
+    allUsers.forEach(u => users[u.id] = u.email);
+    document.getElementById('lr-details').innerHTML = `
+      <div><strong style="color:#e2e8f0">Applicant:</strong> ${users[l.user_id]||l.user_id}</div>
+      <div><strong style="color:#e2e8f0">Amount:</strong> <span style="color:#4ade80;font-weight:700">$${Number(l.amount).toFixed(2)}</span></div>
+      <div><strong style="color:#e2e8f0">Term:</strong> ${l.term_months} months</div>
+      <div><strong style="color:#e2e8f0">Purpose:</strong> ${l.purpose}</div>
+      <div><strong style="color:#e2e8f0">Monthly Income:</strong> ${l.monthly_income?'$'+Number(l.monthly_income).toFixed(2):'Not provided'}</div>
+      <div><strong style="color:#e2e8f0">Submitted:</strong> ${new Date(l.created_at).toLocaleString()}</div>`;
+    openModal('modal-loan-review');
+  });
+}
+
+async function doLoanReview(status) {
+  const note = document.getElementById('lr-note').value.trim();
+  const btnId = status === 'approved' ? 'lr-approve-btn' : 'lr-reject-btn';
+  setLoading(btnId, true, status === 'approved' ? 'Approving...' : 'Rejecting...');
+  const { error } = await sb.rpc('admin_review_loan', { loan_id: selectedLoanId, new_status: status, note });
+  setLoading(btnId, false, status === 'approved' ? 'Approve' : 'Reject');
+  if (error) { showAlert('lr-err', error.message); return; }
+  closeModal('modal-loan-review');
+  await loadLoans(); await loadStats(); await loadUsers(); await loadTxns();
+}
+
+// ── Tickets ───────────────────────────────────────────
+async function loadTickets() {
+  const status = document.getElementById('ticket-filter').value;
+  const { data } = await sb.rpc('admin_get_all_tickets');
+  window._allTickets = data || [];
+  const users = {};
+  allUsers.forEach(u => users[u.id] = u.email);
+  const tb = document.getElementById('tickets-tbody');
+  const rows = (data || []).filter(t => !status || t.status === status);
+  if (!rows.length) { tb.innerHTML = '<tr><td colspan="6"><div class="empty"><div class="empty-icon">🎫</div><div class="empty-text">No support tickets</div></div></td></tr>'; return; }
+  tb.innerHTML = rows.map(t => `
+    <tr>
+      <td>${users[t.user_id]||(t.user_id ? t.user_id.substring(0,8) : 'Guest')}</td>
+      <td style="max-width:160px;white-space:normal;color:#e2e8f0">${t.subject}</td>
+      <td><span class="badge badge-user">${t.category}</span></td>
+      <td><span class="badge badge-${t.status}">${t.status.replace('_',' ')}</span></td>
+      <td>${new Date(t.created_at).toLocaleDateString()}</td>
+      <td><button class="btn btn-ghost btn-sm" onclick="openTicketReply('${t.id}')">Reply</button></td>
+    </tr>`).join('');
+}
+
+function openTicketReply(tid) {
+  selectedTicketId = tid;
+  document.getElementById('tk-err').style.display='none';
+  document.getElementById('tk-reply').value='';
+  sb.rpc('admin_get_ticket', { t_id: tid }).then(({data:t}) => {
+    const users = {};
+    allUsers.forEach(u => users[u.id] = u.email);
+    document.getElementById('tk-details').innerHTML = `
+      <div><strong style="color:#e2e8f0">From:</strong> ${users[t.user_id]||(t.user_id||'Guest')}</div>
+      <div><strong style="color:#e2e8f0">Subject:</strong> ${t.subject}</div>
+      <div><strong style="color:#e2e8f0">Category:</strong> ${t.category}</div>
+      <div style="margin-top:10px;padding-top:10px;border-top:1px solid #1e2d4a;color:#cbd5e1">${t.message}</div>
+      ${t.admin_reply?`<div style="margin-top:10px;padding-top:10px;border-top:1px solid #1e2d4a"><strong style="color:#60a5fa">Previous Reply:</strong><div style="color:#94a3b8;margin-top:4px">${t.admin_reply}</div></div>`:''}`;
+    openModal('modal-ticket-reply');
+  });
+}
+
+async function doTicketReply() {
+  const reply = document.getElementById('tk-reply').value.trim();
+  const status = document.getElementById('tk-status').value;
+  if (!reply) { showAlert('tk-err','Please write a reply'); return; }
+  setLoading('tk-btn', true, 'Sending...');
+  const { error } = await sb.rpc('admin_reply_ticket', { ticket_id: selectedTicketId, reply, new_status: status });
+  setLoading('tk-btn', false, 'Send Reply');
+  if (error) { showAlert('tk-err', error.message); return; }
+  closeModal('modal-ticket-reply');
+  await loadTickets(); await loadStats();
+}
+
+// ── Proactive admin → user message ────────────────────
+// Inserts a ticket owned by the target user with admin_reply set to the body,
+// so it appears in their Webmail inbox as mail from the bank. Admin role RLS
+// permits cross-user inserts on support_tickets.
+function openMessageModal() {
+  const u = allUsers.find(x => x.id === selectedUserId);
+  if (!u) return;
+  document.getElementById('msg-name').textContent = u.full_name || u.email;
+  document.getElementById('msg-err').style.display = 'none';
+  document.getElementById('msg-ok').style.display = 'none';
+  document.getElementById('msg-subject').value = '';
+  document.getElementById('msg-body').value = '';
+  document.getElementById('msg-category').value = 'account';
+  closeModal('modal-user');
+  openModal('modal-message');
+}
+
+async function doSendMessage() {
+  const subject = document.getElementById('msg-subject').value.trim();
+  const body = document.getElementById('msg-body').value.trim();
+  const category = document.getElementById('msg-category').value;
+  if (!subject) { showAlert('msg-err', 'Please enter a subject'); return; }
+  if (!body) { showAlert('msg-err', 'Please write a message'); return; }
+  setLoading('msg-btn', true, 'Sending...');
+  const { error } = await sb.rpc('admin_send_message', {
+    target_user: selectedUserId,
+    p_subject: subject,
+    p_body: body,
+    p_category: category
+  });
+  setLoading('msg-btn', false, 'Send Message');
+  if (error) { showAlert('msg-err', error.message); return; }
+  document.getElementById('msg-ok').textContent = '✅ Message delivered to the user\'s inbox.';
+  document.getElementById('msg-ok').style.display = 'block';
+  document.getElementById('msg-subject').value = '';
+  document.getElementById('msg-body').value = '';
+  setTimeout(() => closeModal('modal-message'), 1600);
+}
+
+// ── Transactions ──────────────────────────────────────
+async function loadTxns() {
+  const { data } = await sb.rpc('admin_get_all_transactions');
+  allTxns = data || [];
+  renderTxns(allTxns);
+  // Recent activity on dashboard
+  const el = document.getElementById('recent-activity');
+  if (!allTxns.length) { el.innerHTML = '<div class="empty"><div class="empty-icon">📊</div><div class="empty-text">No transactions yet</div></div>'; return; }
+  const users = {};
+  allUsers.forEach(u => users[u.id] = u.email);
+  el.innerHTML = '<div class="activity-list" style="padding:4px 20px">' +
+    allTxns.slice(0,10).map(t => `
+      <div class="activity-item">
+        <div class="activity-dot ${t.type==='credit'?'dot-green':t.type==='hold'?'dot-yellow':t.type==='release'?'dot-blue':'dot-red'}"></div>
+        <div class="activity-info">
+          <div class="activity-title">${t.description||t.type}</div>
+          <div class="activity-meta">${users[t.user_id]||'—'} · ${new Date(t.created_at).toLocaleDateString()}</div>
+        </div>
+        <div class="activity-amount ${t.type==='credit'||t.type==='release'?'amount-credit':'amount-debit'}">
+          ${t.type==='credit'||t.type==='release'?'+':'-'}$${Number(t.amount).toFixed(2)}
+        </div>
+      </div>`).join('') + '</div>';
+}
+
+function renderTxns(txns) {
+  const users = {};
+  allUsers.forEach(u => users[u.id] = u.email);
+  const tb = document.getElementById('txns-tbody');
+  if (!txns.length) { tb.innerHTML = '<tr><td colspan="7"><div class="empty"><div class="empty-icon">📊</div><div class="empty-text">No transactions</div></div></td></tr>'; return; }
+  tb.innerHTML = txns.map(t => `
+    <tr>
+      <td>${users[t.user_id]||t.user_id.substring(0,8)}</td>
+      <td><span class="badge badge-${t.type}">${t.type}</span></td>
+      <td style="font-weight:700;color:${t.type==='credit'?'#4ade80':t.type==='hold'?'#fbbf24':'#60a5fa'}">$${Number(t.amount).toFixed(2)}</td>
+      <td style="max-width:200px;white-space:normal;font-size:12px">${t.description||'—'}</td>
+      <td><span class="badge badge-${t.status}">${t.status}</span></td>
+      <td>${new Date(t.created_at).toLocaleDateString()}</td>
+      <td><button type="button" class="btn btn-ghost btn-sm" onclick="openEditTxnModal('${t.id}','all')">✏️ Edit</button></td>
+    </tr>`).join('');
+}
+
+function filterTxns() {
+  const q = document.getElementById('txn-search').value.toLowerCase();
+  const users = {};
+  allUsers.forEach(u => users[u.id] = u.email);
+  renderTxns(allTxns.filter(t => (t.description||'').toLowerCase().includes(q) || (users[t.user_id]||'').toLowerCase().includes(q) || t.type.includes(q)));
+}
+
+// ── Edit Transaction ──────────────────────────────────
+let etCurrentId = null;
+let etSource = 'all';
+function openEditTxnModal(txnId, source) {
+  etCurrentId = txnId;
+  etSource = source || 'all';
+  const pool = etSource === 'history' ? txnHistoryCache : allTxns;
+  const t = pool.find(x => x.id === txnId);
+  if (!t) return;
+  document.getElementById('et-err').style.display = 'none';
+  document.getElementById('et-ok').style.display = 'none';
+  document.getElementById('et-status').value = t.status || 'pending';
+  document.getElementById('et-amount').value = Number(t.amount || 0).toFixed(2);
+  document.getElementById('et-desc').value = t.description || '';
+  const d = new Date(t.created_at);
+  const pad = n => String(n).padStart(2, '0');
+  const localVal = d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+  document.getElementById('et-date').value = localVal;
+  openModal('modal-edit-txn');
+}
+
+async function doSaveTxn() {
+  if (!etCurrentId) return;
+  const status = document.getElementById('et-status').value;
+  const amountRaw = document.getElementById('et-amount').value;
+  const dateRaw = document.getElementById('et-date').value;
+  const desc = document.getElementById('et-desc').value.trim();
+  const amount = amountRaw === '' ? null : parseFloat(amountRaw);
+  if (amount !== null && isNaN(amount)) { showAlert('et-err', 'Enter a valid amount.'); return; }
+  const isoDate = dateRaw ? new Date(dateRaw).toISOString() : null;
+  setLoading('et-save-btn', true, 'Saving...');
+  const { error } = await sb.rpc('admin_update_transaction', {
+    target_id: etCurrentId,
+    p_status: status,
+    p_amount: amount,
+    p_created_at: isoDate,
+    p_description: desc
+  });
+  setLoading('et-save-btn', false, 'Save Changes');
+  if (error) { showAlert('et-err', error.message); return; }
+  closeModal('modal-edit-txn');
+  await loadUsers();
+  await loadStats();
+  if (etSource === 'history') { await openTxnHistory(); }
+  else { await loadTxns(); }
+}
+
+// ── Cards ──────────────────────────────────────────────
+function maskCardNumber(num) {
+  const s = String(num || '');
+  const last4 = s.slice(-4);
+  return '•••• •••• •••• ' + (last4 || '????');
+}
+
+async function loadCards() {
+  const { data, error } = await sb.rpc('admin_get_all_cards');
+  if (error) {
+    document.getElementById('cards-tbody').innerHTML = '<tr><td colspan="8"><div class="empty"><div class="empty-icon">💳</div><div class="empty-text">' + esc(error.message || 'Could not load cards. Apply SQL/supabase/014_cards.sql if this RPC is missing.') + '</div></div></td></tr>';
+    return;
+  }
+  allCards = data || [];
+  renderCards(allCards);
+}
+
+function renderCards(cards) {
+  const users = {};
+  allUsers.forEach(u => users[u.id] = (u.full_name || u.email));
+  const tb = document.getElementById('cards-tbody');
+  document.getElementById('card-count').textContent = cards.length ? `(${cards.length})` : '';
+  if (!cards.length) { tb.innerHTML = '<tr><td colspan="8"><div class="empty"><div class="empty-icon">💳</div><div class="empty-text">No cards issued yet</div></div></td></tr>'; return; }
+  tb.innerHTML = cards.map(c => `
+    <tr>
+      <td>${esc(users[c.user_id] || c.user_id.substring(0,8))}</td>
+      <td style="font-family:monospace">${maskCardNumber(c.card_number)}</td>
+      <td>${String(c.expiry_month).padStart(2,'0')}/${String(c.expiry_year).slice(-2)}</td>
+      <td style="font-family:monospace">•••</td>
+      <td style="font-family:monospace">${'•'.repeat((c.pin||'').length || 4)}</td>
+      <td><span class="badge badge-${c.status === 'active' ? 'active' : c.status === 'frozen' ? 'pending' : 'inactive'}">${c.status}</span></td>
+      <td>${new Date(c.created_at).toLocaleDateString()}</td>
+      <td><button type="button" class="btn btn-ghost btn-sm" onclick="openEditCardModal('${c.user_id}')">✏️ Manage</button></td>
+    </tr>`).join('');
+}
+
+function filterCards() {
+  const q = document.getElementById('card-search').value.toLowerCase();
+  const users = {};
+  allUsers.forEach(u => users[u.id] = (u.full_name || u.email || '').toLowerCase());
+  renderCards(allCards.filter(c => (users[c.user_id] || '').includes(q)));
+}
+
+let ecTargetUid = null;
+function openEditCardModal(uid) {
+  const u = allUsers.find(x => x.id === uid);
+  const c = allCards.find(x => x.user_id === uid);
+  ecTargetUid = uid;
+  document.getElementById('ec-err').style.display = 'none';
+  document.getElementById('ec-ok').style.display = 'none';
+  document.getElementById('ec-user-note').textContent = u ? (u.full_name || u.email) : uid;
+  if (c) {
+    document.getElementById('ec-number').value = c.card_number || '';
+    document.getElementById('ec-exp-month').value = c.expiry_month || '';
+    document.getElementById('ec-exp-year').value = c.expiry_year || '';
+    document.getElementById('ec-cvv').value = c.cvv || '';
+    document.getElementById('ec-pin').value = c.pin || '';
+    document.getElementById('ec-status').value = c.status || 'active';
+  } else {
+    document.getElementById('ec-number').value = '';
+    document.getElementById('ec-exp-month').value = '';
+    document.getElementById('ec-exp-year').value = '';
+    document.getElementById('ec-cvv').value = '';
+    document.getElementById('ec-pin').value = '';
+    document.getElementById('ec-status').value = 'active';
+  }
+  openModal('modal-edit-card');
+}
+
+function openEditCardModalForUser() {
+  if (!selectedUserId) return;
+  closeModal('modal-user');
+  openEditCardModal(selectedUserId);
+}
+
+async function doSaveCard() {
+  if (!ecTargetUid) return;
+  const number = document.getElementById('ec-number').value.trim();
+  const month = parseInt(document.getElementById('ec-exp-month').value, 10);
+  const year = parseInt(document.getElementById('ec-exp-year').value, 10);
+  const cvv = document.getElementById('ec-cvv').value.trim();
+  const pin = document.getElementById('ec-pin').value.trim();
+  const status = document.getElementById('ec-status').value;
+  if (!number || regexDigitsOnly(number).length < 12) { showAlert('ec-err', 'Enter a valid card number.'); return; }
+  if (!month || month < 1 || month > 12) { showAlert('ec-err', 'Enter a valid expiry month (1-12).'); return; }
+  if (!year || year < 2024) { showAlert('ec-err', 'Enter a valid expiry year.'); return; }
+  if (!cvv) { showAlert('ec-err', 'Enter a CVV.'); return; }
+  if (!pin || !/^\d{4}(\d{2})?$/.test(pin)) { showAlert('ec-err', 'Enter a 4 or 6 digit PIN.'); return; }
+  setLoading('ec-save-btn', true, 'Saving...');
+  const { error } = await sb.rpc('admin_update_card', {
+    target_uid: ecTargetUid,
+    p_card_number: number,
+    p_expiry_month: month,
+    p_expiry_year: year,
+    p_cvv: cvv,
+    p_status: status,
+    p_pin: pin
+  });
+  setLoading('ec-save-btn', false, 'Save Changes');
+  if (error) { showAlert('ec-err', error.message); return; }
+  document.getElementById('ec-ok').textContent = '✅ Card updated.';
+  document.getElementById('ec-ok').style.display = 'block';
+  await loadCards();
+  setTimeout(() => closeModal('modal-edit-card'), 800);
+}
+
+async function doRegenerateCard() {
+  if (!ecTargetUid) return;
+  setLoading('ec-regen-btn', true, 'Generating...');
+  const { data, error } = await sb.rpc('admin_issue_card', { target_uid: ecTargetUid });
+  setLoading('ec-regen-btn', false, '🔄 Regenerate Card');
+  if (error) { showAlert('ec-err', error.message || 'Could not issue a card. Apply SQL/supabase/014_cards.sql if this RPC is missing.'); return; }
+  if (data) {
+    document.getElementById('ec-number').value = data.card_number || '';
+    document.getElementById('ec-exp-month').value = data.expiry_month || '';
+    document.getElementById('ec-exp-year').value = data.expiry_year || '';
+    document.getElementById('ec-cvv').value = data.cvv || '';
+    document.getElementById('ec-pin').value = data.pin || '';
+    document.getElementById('ec-status').value = data.status || 'active';
+  }
+  document.getElementById('ec-ok').textContent = '✅ New card generated — remember to share the new details with the customer.';
+  document.getElementById('ec-ok').style.display = 'block';
+  await loadCards();
+}
+
+function regexDigitsOnly(s) { return String(s || '').replace(/\D/g, ''); }
+
+// ── UI Helpers ────────────────────────────────────────
+function showSection(id, el) {
+  if (id === 'deposits') loadDeposits();
+  if (id === 'livechat') loadLiveChats();
+  if (id === 'email') loadEmail();
+  if (id === 'security') renderAdminSecurity();
+  if (id === 'deposit-methods') pmLoad();
+  if (id === 'cards') loadCards();
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.getElementById('section-' + id).classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  const navEl = el || event.currentTarget;
+  if (navEl && navEl.classList) navEl.classList.add('active');
+  document.getElementById('page-title').textContent = (navEl && navEl.textContent ? navEl.textContent : '').trim().replace(/\d+/g,'').trim();
+  closeSidebar();
+}
+function openModal(id) { document.getElementById(id).classList.add('open'); document.body.style.overflow='hidden'; }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); document.body.style.overflow=''; }
+function showAlert(id, msg) { const el=document.getElementById(id); el.textContent=msg; el.style.display='block'; setTimeout(()=>el.style.display='none',5000); }
+function setLoading(btnId, loading, text) { const b=document.getElementById(btnId); if(b){b.disabled=loading; b.textContent=text;} }
+function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); document.getElementById('mob-backdrop').classList.toggle('show'); }
+function closeSidebar() { document.getElementById('sidebar').classList.remove('open'); document.getElementById('mob-backdrop').classList.remove('show'); }
+function doLogout() { sb.auth.signOut().then(()=>window.location.replace('/login')); }
+
+// ── Admin Security (change own password) ─────────────
+function renderAdminSecurity() {
+  const p = currentUser || {};
+  const nameEl = document.getElementById('admin-sec-name');
+  const emailEl = document.getElementById('admin-sec-email');
+  const avEl = document.getElementById('admin-sec-avatar');
+  if (nameEl) nameEl.textContent = p.full_name || (p.email||'').split('@')[0] || 'Admin';
+  if (emailEl) emailEl.textContent = p.email || '—';
+  if (avEl) avEl.textContent = ((p.full_name||p.email||'A')[0]||'A').toUpperCase();
+}
+
+function doChangePassword() {
+  const cur = document.getElementById('sec-current').value;
+  const nw  = document.getElementById('sec-new').value;
+  const cf  = document.getElementById('sec-confirm').value;
+  const msg = document.getElementById('sec-msg');
+  function fail(m) { msg.className = 'alert alert-err'; msg.textContent = m; msg.style.display = 'block'; }
+  if (!cur) return fail('Please enter your current password.');
+  if (!nw || nw.length < 8) return fail('New password must be at least 8 characters.');
+  if (nw !== cf) return fail('New password and confirmation do not match.');
+  setLoading('sec-btn', true, 'Updating…');
+  sb.auth.updateUser({ password: nw }).then(({ error }) => {
+    if (error) {
+      msg.className = 'alert alert-err'; msg.textContent = error.message || 'Password update failed.'; msg.style.display = 'block';
+    } else {
+      msg.className = 'alert alert-ok'; msg.textContent = 'Password updated successfully.'; msg.style.display = 'block';
+      ['sec-current','sec-new','sec-confirm'].forEach(id => document.getElementById(id).value = '');
+    }
+    setLoading('sec-btn', false, 'Update Password');
+  }).catch(e => { setLoading('sec-btn', false,'Update Password'); fail(e.message || 'Password update failed.'); });
+}
+
+['sec-current','sec-new','sec-confirm'].forEach(id => {
+  const el = document.getElementById(id);
+  if (el) el.addEventListener('keydown', e => { if (e.key === 'Enter') e.preventDefault(), doChangePassword(); });
+});
+
+// Close modal on overlay click
+document.querySelectorAll('.modal-overlay').forEach(o => o.addEventListener('click', e => { if(e.target===o) closeModal(o.id); }));
+
+// ── Live Chat Admin ────────────────────────────────────────────────────────
+let lcSessions = [];
+let lcSelectedId = null;
+let lcPollingTimer = null;
+
+async function loadLiveChats() {
+  const list = document.getElementById('lc-session-list');
+  if (!list) { console.error('lc-session-list not found'); return; }
+  list.innerHTML = '<div style="padding:16px;text-align:center;color:#64748b;font-size:13px">Loading…</div>';
+  let data = window._allTickets;
+  if (!data) {
+    try {
+      const { data: d, error } = await Promise.race([
+        sb.rpc('admin_get_all_tickets'),
+        new Promise((_, rej) => setTimeout(() => rej(new Error('Request timed out')), 12000))
+      ]);
+      if (error) { list.innerHTML = '<div style="padding:16px;color:#f87171;font-size:13px">Error: ' + esc(error.message) + '</div>'; return; }
+      data = d || [];
+      window._allTickets = data;
+    } catch (e) {
+      list.innerHTML = '<div style="padding:16px;color:#f87171;font-size:13px">Error: ' + esc(e.message || String(e)) + '</div>'; return;
+    }
+  }
+  const tickets = (data || []).filter(t => t.category === 'live_chat').sort((a,b) => (b.updated_at||'').localeCompare(a.updated_at||''));
+  lcSessions = tickets;
+
+  // Badge count
+  const openCount = tickets.filter(t => t.status === 'open').length;
+  const badge = document.getElementById('nb-livechat');
+  if (openCount > 0) { badge.style.display = 'inline-flex'; badge.textContent = openCount; }
+  else { badge.style.display = 'none'; }
+
+  if (!tickets.length) {
+    list.innerHTML = '<div style="padding:24px;text-align:center;color:#64748b;font-size:13px">No live chat sessions yet</div>';
+    return;
+  }
+
+  const users = {};
+  allUsers.forEach(u => { users[u.id] = u; });
+
+  list.innerHTML = tickets.map(t => {
+    const u = users[t.user_id];
+    const name = u ? (u.full_name || u.email) : (t.user_id ? t.user_id.substring(0, 8) : 'Guest');
+    const initials = (name[0] || 'U').toUpperCase();
+    const isOpen = t.status === 'open';
+    const preview = lcPreview(t);
+    const selected = t.id === lcSelectedId ? 'background:#1e2d4a;' : '';
+    return `<div onclick="selectLcSession('${t.id}')" style="padding:13px 16px;border-bottom:1px solid #1a2640;cursor:pointer;${selected}border-left:3px solid ${isOpen ? '#2563eb' : '#1e2d4a'}">
+      <div style="display:flex;align-items:center;gap:9px;margin-bottom:4px">
+        <div style="width:28px;height:28px;border-radius:50%;background:#1e3a8a;display:flex;align-items:center;justify-content:center;color:#93c5fd;font-weight:700;font-size:11px;flex-shrink:0">${initials}</div>
+        <div style="flex:1;min-width:0">
+          <div style="color:#e2e8f0;font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(name)}</div>
+        </div>
+        <span style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:8px;background:${isOpen ? '#1e3a8a' : '#1e2d4a'};color:${isOpen ? '#93c5fd' : '#64748b'}">${t.status}</span>
+      </div>
+      <div style="color:#64748b;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-left:37px">${esc(preview)}</div>
+    </div>`;
+  }).join('');
+}
+
+function lcPreview(t) {
+  const lines = (t.message || '').split('\n---\n').filter(l => l && l !== '__chat_init__');
+  if (!lines.length) return t.admin_reply || '(no messages yet)';
+  const last = lines[lines.length - 1].replace(/^\[(admin|user)\]\s*/, '').replace(/\s*\[\d{4}-[^\]]+\]$/, '');
+  return last.slice(0, 60);
+}
+
+function selectLcSession(id) {
+  lcSelectedId = id;
+  const t = lcSessions.find(x => x.id === id);
+  if (!t) return;
+  const users = {}; allUsers.forEach(u => { users[u.id] = u; });
+  const u = users[t.user_id];
+  const name = u ? (u.full_name || u.email) : t.user_id.substring(0, 8);
+  const initials = (name[0] || 'U').toUpperCase();
+
+  document.getElementById('lc-empty-state').style.display = 'none';
+  document.getElementById('lc-chat-pane').style.display = 'flex';
+  document.getElementById('lc-user-avatar').textContent = initials;
+  document.getElementById('lc-user-name').textContent = name;
+  document.getElementById('lc-user-email').textContent = u ? u.email : '';
+  document.getElementById('lc-status-sel').value = t.status;
+  document.getElementById('lc-err').style.display = 'none';
+  document.getElementById('lc-reply-input').value = '';
+
+  renderLcMsgs(t);
+  // Refresh session list to highlight selection
+  loadLiveChats();
+  // Poll for new messages every 4s while this session is open
+  clearInterval(lcPollingTimer);
+  lcPollingTimer = setInterval(() => pollLcSession(id), 4000);
+}
+
+async function pollLcSession(id) {
+  if (lcSelectedId !== id) { clearInterval(lcPollingTimer); return; }
+  const { data } = await sb.rpc('admin_get_ticket', { t_id: id });
+  if (data) {
+    const idx = lcSessions.findIndex(x => x.id === id);
+    if (idx >= 0) lcSessions[idx] = data;
+    renderLcMsgs(data);
+  }
+}
+
+function renderLcMsgs(t) {
+  const msgs = parseLcMsgs(t);
+  const el = document.getElementById('lc-msgs');
+  if (!msgs.length) {
+    el.innerHTML = '<div style="flex:1;display:flex;align-items:center;justify-content:center;color:#475569;font-size:13px">No messages yet — waiting for user…</div>';
+    return;
+  }
+  el.innerHTML = msgs.map(m => {
+    const isAdmin = m.side === 'admin';
+    return `<div style="display:flex;flex-direction:column;align-items:${isAdmin ? 'flex-end' : 'flex-start'};gap:2px;max-width:100%">
+      <div style="max-width:75%;padding:9px 13px;border-radius:14px;font-size:13px;line-height:1.5;word-break:break-word;
+        ${isAdmin ? 'background:#1e40af;color:#eff6ff;border-bottom-right-radius:3px' : 'background:#1e2d4a;color:#e2e8f0;border-bottom-left-radius:3px'}">${esc(m.text)}</div>
+      <div style="font-size:10px;color:#475569">${isAdmin ? 'You' : 'User'} · ${m.time ? new Date(m.time).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}) : ''}</div>
+    </div>`;
+  }).join('');
+  el.scrollTop = el.scrollHeight;
+}
+
+function parseLcMsgs(t) {
+  const out = [];
+  (t.message || '').split('\n---\n').forEach(chunk => {
+    if (!chunk || chunk === '__chat_init__') return;
+    const isAdmin = chunk.startsWith('[admin]');
+    out.push({
+      side: isAdmin ? 'admin' : 'user',
+      text: chunk.replace(/^\[(admin|user)\]\s*/, '').replace(/\s*\[\d{4}-[^\]]+\]$/, '').trim(),
+      time: t.updated_at
+    });
+  });
+  if (t.admin_reply && !out.find(m => m.side === 'admin' && m.text === t.admin_reply)) {
+    out.push({ side: 'admin', text: t.admin_reply, time: t.updated_at });
+  }
+  return out;
+}
+
+async function sendLcReply() {
+  const text = document.getElementById('lc-reply-input').value.trim();
+  if (!text || !lcSelectedId) return;
+  setLoading('lc-send-btn', true, '…');
+  document.getElementById('lc-err').style.display = 'none';
+
+  const t = lcSessions.find(x => x.id === lcSelectedId);
+  const newStatus = document.getElementById('lc-status-sel').value;
+  const { data: updated, error } = await sb.rpc('admin_append_ticket_message', {
+    ticket_id: lcSelectedId, msg: text, p_admin_reply: text, new_status: newStatus
+  });
+  setLoading('lc-send-btn', false, 'Send');
+  if (error) { showAlert('lc-err', error.message); return; }
+  document.getElementById('lc-reply-input').value = '';
+  // Update local state & re-render immediately
+  if (updated) {
+    if (t) { t.message = updated.message; t.admin_reply = text; t.status = updated.status; }
+    else if (updated) { lcSessions.unshift(updated); }
+    renderLcMsgs(updated);
+  } else if (t) {
+    t.admin_reply = text;
+    renderLcMsgs(t);
+  }
+}
+
+async function updateLcStatus() {
+  if (!lcSelectedId) return;
+  const newStatus = document.getElementById('lc-status-sel').value;
+  await sb.rpc('admin_set_ticket_status', { ticket_id: lcSelectedId, new_status: newStatus });
+  const t = lcSessions.find(x => x.id === lcSelectedId);
+  if (t) t.status = newStatus;
+  loadLiveChats();
+}
+
+// ── Email (support@stlouisshorebank.com) ───────────────────────────────────
+// Mail is modelled on support_tickets (same as the user dashboard Webmail):
+//   INBOUND  = ticket with a user/guest-written message (not a placeholder)
+//   OUTBOUND = ticket with admin_reply set (reply, proactive message, or
+//              automated notification) — shown under Sent.
+// Live-chat threads are excluded; they live in the Live Chat section.
+const EMAIL_PLACEHOLDER_MSGS = ['Admin message', 'Notification', 'Welcome email', '__chat_init__'];
+let emailTab = 'inbox';
+let emailAll = [];
+let emailInbox = [];
+let emailSent = [];
+let selectedEmailId = null;
+
+function emailIsInbound(t) {
+  if (t.category === 'live_chat') return false;
+  return EMAIL_PLACEHOLDER_MSGS.indexOf((t.message || '').trim()) === -1;
+}
+function emailGuestFrom(t) {
+  const m = (t.message || '').match(/From:\s*(.+?)\s*<([^>\s]+)>/);
+  return m ? { name: m[1], email: m[2] } : null;
+}
+// In-platform address for a registered user: <account_number>@stlouisshorebank.com
+// (same scheme the user Webmail shows). Guests keep their real email — they
+// have no account address.
+function userMailAddr(u) {
+  const acct = (u && u.account_number ? u.account_number : (u && u.id ? u.id : 'user')).toLowerCase();
+  return acct + '@stlouisshorebank.com';
+}
+function emailFromLabel(t) {
+  const u = allUsers.find(x => x.id === t.user_id);
+  if (u) return (u.full_name || u.email) + ' <' + userMailAddr(u) + '>';
+  const g = emailGuestFrom(t);
+  if (g) return g.name + ' <' + g.email + '>';
+  return t.user_id ? t.user_id.substring(0, 8) : 'Guest';
+}
+function emailToLabel(t) {
+  const u = allUsers.find(x => x.id === t.user_id);
+  if (u) return userMailAddr(u);
+  const g = emailGuestFrom(t);
+  return g ? g.email : (t.user_id ? t.user_id.substring(0, 8) : 'Guest');
+}
+
+// Threading — same subject normalization as the user Webmail: rows sharing a
+// subject (ignoring "Re: " prefixes) form one conversation.
+function emailThreadKey(s) {
+  return String(s || '(no subject)').toLowerCase()
+    .replace(/^support message sent\s*[—-]\s*/i, '')
+    .replace(/^(re:\s*)+/, '')
+    .trim();
+}
+function emailActivityTs(t) { return t.updated_at || t.created_at || ''; }
+function emailThreads(list) {
+  const map = {}, threads = [];
+  list.forEach(r => {
+    const k = emailThreadKey(r.subject);
+    if (!map[k]) { map[k] = { key: k, rows: [], latestTs: '' }; threads.push(map[k]); }
+    const th = map[k];
+    th.rows.push(r);
+    const ts = emailActivityTs(r);
+    if (ts > th.latestTs) th.latestTs = ts;
+  });
+  threads.forEach(th => th.rows.sort((a, b) => (a.created_at || '').localeCompare(b.created_at || '')));
+  threads.sort((a, b) => b.latestTs.localeCompare(a.latestTs));
+  return threads;
+}
+function emailThreadSubject(th) {
+  return String(th.rows[th.rows.length - 1].subject || '(no subject)')
+    .replace(/^support message sent\s*[—-]\s*/i, '')
+    .replace(/^(re:\s*)+/i, '');
+}
+function emailThreadLatest(th) {
+  let latest = th.rows[0];
+  th.rows.forEach(r => { if (emailActivityTs(r) >= emailActivityTs(latest)) latest = r; });
+  return latest;
+}
+
+async function loadEmail(force) {
+  let data = window._allTickets;
+  if (force || !data) {
+    const { data: d, error } = await sb.rpc('admin_get_all_tickets');
+    if (error) {
+      document.getElementById('email-inbox-tbody').innerHTML =
+        '<tr><td colspan="6"><div class="empty"><div class="empty-text">Error: ' + esc(error.message) + '</div></div></td></tr>';
+      return;
+    }
+    data = d || [];
+    window._allTickets = data;
+  }
+  const mail = (data || []).filter(t => t.category !== 'live_chat');
+  emailAll = mail;
+  emailInbox = mail.filter(emailIsInbound)
+    .sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
+  emailSent = mail.filter(t => t.admin_reply && t.admin_reply.trim())
+    .sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
+
+  const unread = emailInbox.filter(t => t.status === 'open').length;
+  const badge = document.getElementById('nb-email');
+  if (unread > 0) { badge.style.display = 'inline-flex'; badge.textContent = unread; }
+  else { badge.style.display = 'none'; }
+
+  renderEmailLists();
+  // (Re)build the compose recipient list from the known users.
+  const sel = document.getElementById('em-to');
+  const cur = sel.value;
+  sel.innerHTML = allUsers
+    .slice()
+    .sort((a, b) => (a.email || '').localeCompare(b.email || ''))
+    .map(u => '<option value="' + u.id + '">' + esc(u.full_name ? u.full_name + ' <' + u.email + '>' : u.email) + '</option>')
+    .join('');
+  if (cur) sel.value = cur;
+}
+
+function renderEmailLists() {
+  const ib = document.getElementById('email-inbox-tbody');
+  const inThreads = emailThreads(emailInbox);
+  if (!inThreads.length) {
+    ib.innerHTML = '<tr><td colspan="6"><div class="empty"><div class="empty-icon">📭</div><div class="empty-text">Inbox is empty</div></div></td></tr>';
+  } else {
+    ib.innerHTML = inThreads.map(th => {
+      const t = emailThreadLatest(th);
+      return `
+    <tr>
+      <td style="max-width:180px;white-space:normal">${esc(emailFromLabel(t))}</td>
+      <td style="max-width:180px;white-space:normal;color:#e2e8f0">${esc(emailThreadSubject(th))}${th.rows.length > 1 ? ` <span style="color:#64748b;font-size:11px">(${th.rows.length})</span>` : ''}</td>
+      <td><span class="badge badge-user">${esc(t.category)}</span></td>
+      <td><span class="badge badge-${t.status}">${(t.status || '').replace('_', ' ')}</span></td>
+      <td>${new Date(emailActivityTs(t)).toLocaleDateString()}</td>
+      <td><button class="btn btn-ghost btn-sm" onclick="openEmail('${t.id}')">Read / Reply</button></td>
+    </tr>`;
+    }).join('');
+  }
+  const st = document.getElementById('email-sent-tbody');
+  const outThreads = emailThreads(emailSent);
+  if (!outThreads.length) {
+    st.innerHTML = '<tr><td colspan="4"><div class="empty"><div class="empty-icon">📤</div><div class="empty-text">No sent mail</div></div></td></tr>';
+  } else {
+    st.innerHTML = outThreads.map(th => {
+      const t = emailThreadLatest(th);
+      return `
+    <tr>
+      <td style="max-width:180px;white-space:normal">${esc(emailToLabel(t))}</td>
+      <td style="max-width:220px;white-space:normal;color:#e2e8f0">${esc(emailThreadSubject(th))}${th.rows.length > 1 ? ` <span style="color:#64748b;font-size:11px">(${th.rows.length})</span>` : ''}</td>
+      <td>${new Date(emailActivityTs(t)).toLocaleDateString()}</td>
+      <td><button class="btn btn-ghost btn-sm" onclick="openEmail('${t.id}')">View</button></td>
+    </tr>`;
+    }).join('');
+  }
+}
+
+function setEmailTab(tab) {
+  emailTab = tab;
+  ['inbox', 'sent', 'compose'].forEach(x => {
+    document.getElementById('email-' + x + '-pane').style.display = x === tab ? '' : 'none';
+    const b = document.getElementById('email-tab-' + x);
+    b.classList.toggle('btn-primary', x === tab);
+    b.classList.toggle('btn-ghost', x !== tab);
+  });
+  if (tab !== 'compose') loadEmail();
+}
+
+function openEmail(id) {
+  const t = emailAll.find(x => x.id === id);
+  if (!t) return;
+  const th = emailThreads(emailAll).find(x => x.key === emailThreadKey(t.subject)) || { rows: [t], latestTs: emailActivityTs(t) };
+  const latest = emailThreadLatest(th);
+  // Replies go on the newest user-authored row so they land on the user's
+  // most recent message (and never overwrite an earlier admin_reply).
+  const replyRow = th.rows.filter(emailIsInbound).pop() || null;
+  selectedEmailId = replyRow ? replyRow.id : null;
+  document.getElementById('emr-err').style.display = 'none';
+  document.getElementById('emr-ok').style.display = 'none';
+  document.getElementById('emr-reply').value = '';
+  document.getElementById('emr-title').textContent = emailThreadSubject(th);
+
+  const bubbles = [];
+  th.rows.forEach(r => {
+    const msgText = (r.message || '').trim();
+    if (msgText && EMAIL_PLACEHOLDER_MSGS.indexOf(msgText) === -1) {
+      bubbles.push({ side: 'out', text: r.message, ts: r.created_at, from: emailFromLabel(r) });
+    }
+    if (r.admin_reply && r.admin_reply.trim()) {
+      bubbles.push({ side: 'in', text: r.admin_reply, ts: r.updated_at || r.created_at,
+        from: 'St Louis Shore Bank Support <support@stlouisshorebank.com>' });
+    }
+  });
+  const u = allUsers.find(x => x.id === latest.user_id);
+  document.getElementById('emr-details').innerHTML = `
+    <div><strong style="color:#e2e8f0">With:</strong> ${esc(emailFromLabel(latest))}</div>
+    <div><strong style="color:#e2e8f0">As:</strong> St Louis Shore Bank Support &lt;support@stlouisshorebank.com&gt;</div>
+    <div><strong style="color:#e2e8f0">Latest activity:</strong> ${new Date(th.latestTs).toLocaleString()}</div>
+    ${u && u.email ? `<div style="color:#475569;font-size:11px">Login email: ${esc(u.email)}</div>` : ''}
+    <div class="em-thread" style="margin-top:10px;padding-top:10px;border-top:1px solid #1e2d4a">
+      ${bubbles.length ? bubbles.map(b => `
+        <div class="em-msg ${b.side}">
+          <div class="em-bubble">${esc(b.text)}</div>
+          <div class="em-meta">${esc(b.from)} · ${b.ts ? new Date(b.ts).toLocaleString() : ''}</div>
+        </div>`).join('') : '<div class="em-meta">No message content.</div>'}
+    </div>`;
+  // Guests (contact form / guest chat) have no Webmail account, so a reply
+  // stored on the ticket can never reach them — offer a mailto hand-off.
+  const guest = replyRow && !replyRow.user_id ? emailGuestFrom(replyRow) : null;
+  const canReply = !!replyRow && !guest;
+  document.getElementById('emr-reply-wrap').style.display = canReply ? '' : 'none';
+  document.getElementById('emr-btn').style.display = canReply ? '' : 'none';
+  const note = document.getElementById('emr-guest-note');
+  if (guest) {
+    note.innerHTML = 'This sender is a guest with no account Webmail. Reply directly at ' +
+      '<a style="color:#60a5fa" href="mailto:' + esc(guest.email) + '?subject=' + encodeURIComponent('Re: ' + (replyRow.subject || '')) + '">' + esc(guest.email) + '</a>';
+    note.style.display = 'block';
+  } else {
+    note.style.display = 'none';
+  }
+  openModal('modal-email-read');
+}
+
+async function doEmailReply() {
+  const reply = document.getElementById('emr-reply').value.trim();
+  if (!reply) { showAlert('emr-err', 'Please write a reply'); return; }
+  setLoading('emr-btn', true, 'Sending...');
+  const { error } = await sb.rpc('admin_reply_ticket', { ticket_id: selectedEmailId, reply, new_status: 'resolved' });
+  setLoading('emr-btn', false, 'Send Reply');
+  if (error) { showAlert('emr-err', error.message); return; }
+  closeModal('modal-email-read');
+  await loadEmail(true);
+}
+
+async function doEmailCompose() {
+  const to = document.getElementById('em-to').value;
+  const subject = document.getElementById('em-subject').value.trim();
+  const body = document.getElementById('em-body').value.trim();
+  const category = document.getElementById('em-category').value;
+  if (!to) { showAlert('em-err', 'Please choose a recipient'); return; }
+  if (!subject) { showAlert('em-err', 'Please enter a subject'); return; }
+  if (!body) { showAlert('em-err', 'Please write a message'); return; }
+  setLoading('em-btn', true, 'Sending...');
+  const { error } = await sb.rpc('admin_send_message', { target_user: to, p_subject: subject, p_body: body, p_category: category });
+  setLoading('em-btn', false, 'Send Email');
+  if (error) { showAlert('em-err', error.message); return; }
+  const ok = document.getElementById('em-ok');
+  ok.textContent = '✅ Email delivered to the user\'s Webmail inbox.';
+  ok.style.display = 'block';
+  setTimeout(() => ok.style.display = 'none', 5000);
+  document.getElementById('em-subject').value = '';
+  document.getElementById('em-body').value = '';
+  await loadEmail(true);
+}
+
+init();
+</script>
+</body>
+</html>
