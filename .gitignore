@@ -1,1 +1,5 @@
 supabase/.temp/
+node_modules/
+.env
+*.log
+

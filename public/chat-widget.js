@@ -17,8 +17,6 @@
 (function () {
   'use strict';
 
-  const SUPA_URL = 'https://YOUR-PROJECT-REF.supabase.co';
-  const SUPA_KEY = 'YOUR_SUPABASE_ANON_KEY';
   const SUPPORT_EMAIL = 'support@stlouisshorebank.com';
 
   // ── Helpers ───────────────────────────────────────────────────────────────
@@ -34,41 +32,42 @@
   }
 
   // ── Auth: use the logged-in user's session token ─────────────────────────
-  // @supabase/supabase-js persists the session in localStorage under
-  // sb-<project-ref>-auth-token. RLS on support_tickets requires
-  // auth.uid() = user_id, so calling with the anon key only (the old code)
-  // meant every ticket read/write failed — the widget was dead even for
-  // logged-in users. Send the user's access token whenever one is stored.
-  // supabase-js derives its storage key from the first hostname label
-  // (`sb-<ref>-auth-token`), where <ref> is the project ref on *.supabase.co
-  // but just the first host label otherwise (e.g. the /supa proxy origin in
-  // self-hosted mode). Mirror that here so the widget finds the session.
-  const PROJECT_REF = (SUPA_URL.match(/^https?:\/\/([^.]+)\.supabase\.co/)
-    || SUPA_URL.match(/^https?:\/\/([^/.]+)/))[1];
+  // Same localStorage key the /vendor/supabase.js shim uses, so the widget
+  // finds a session the moment login.html/register.html signs one in.
   function userToken() {
     try {
-      const raw = localStorage.getItem('sb-' + PROJECT_REF + '-auth-token');
+      const raw = localStorage.getItem('slsb-auth-token');
       if (!raw) return null;
       const sess = JSON.parse(raw);
-      const tok = sess && (sess.access_token || (sess.session && sess.session.access_token));
-      return tok || null;
+      return (sess && sess.access_token) || null;
     } catch (e) { return null; }
   }
 
-  // ── Supabase REST helper (no SDK needed) ──────────────────────────────────
-  async function sbFetch(method, path, body) {
-    const token = userToken() || SUPA_KEY;
-    const r = await fetch(SUPA_URL + path, {
-      method,
-      headers: {
-        'Content-Type': 'application/json',
-        'apikey': SUPA_KEY,
-        'Authorization': 'Bearer ' + token,
-        'Prefer': method === 'POST' ? 'return=representation' : ''
-      },
-      body: body ? JSON.stringify(body) : undefined
-    });
-    return r.ok ? r.json() : null;
+  // ── This app's own API (no Supabase involved) ─────────────────────────────
+  // Returns the response's `data` on success, or null on any failure — same
+  // contract the old sbFetch() had, so every call site below is unchanged.
+  async function apiCall(path, body) {
+    const token = userToken();
+    const headers = { 'Content-Type': 'application/json' };
+    if (token) headers.Authorization = 'Bearer ' + token;
+    let r;
+    try {
+      r = await fetch(path, { method: 'POST', headers, body: JSON.stringify(body || {}) });
+    } catch (e) { return null; }
+    let json = null;
+    try { json = await r.json(); } catch (e) {}
+    if (!r.ok) return null;
+    if (json && json.error) return null;
+    return json && 'data' in json ? json.data : json;
+  }
+  function gatewaySelect(table, filters, order, limit) {
+    return apiCall('/api/data/' + table + '/select', { filters, order, limit });
+  }
+  function gatewayInsert(table, values) {
+    return apiCall('/api/data/' + table + '/insert', { values });
+  }
+  function gatewayUpdate(table, values, filters) {
+    return apiCall('/api/data/' + table + '/update', { values, filters });
   }
 
   // ── Inject CSS ────────────────────────────────────────────────────────────
@@ -246,7 +245,7 @@
     // old placeholder-zero user_id also violated the auth.users FK). The
     // create_guest_ticket RPC (migration 008) is SECURITY DEFINER: it inserts
     // server-side with a NULL user_id.
-    const res = await sbFetch('POST', '/rest/v1/rpc/create_guest_ticket', {
+    const res = await apiCall('/api/rpc/create_guest_ticket', {
       p_name: name, p_email: email, p_message: msg
     });
 
@@ -270,16 +269,17 @@
     body.innerHTML = `<div class="mv-chat-empty"><span>💬</span>Loading…</div>`;
 
     // Find existing open ticket for this user (category = 'live_chat')
-    const tickets = await sbFetch('GET',
-      `/rest/v1/support_tickets?user_id=eq.${cfg.userId}&category=eq.live_chat&order=created_at.desc&limit=1`);
+    const tickets = await gatewaySelect('support_tickets',
+      [{ col: 'user_id', op: 'eq', value: cfg.userId }, { col: 'category', op: 'eq', value: 'live_chat' }],
+      { column: 'created_at', ascending: false }, 1);
 
     if (tickets && tickets.length) {
       ticketId = tickets[0].id;
       msgs = buildMsgs(tickets[0]);
     } else {
-      // Create a new live chat session
-      const created = await sbFetch('POST', '/rest/v1/support_tickets', {
-        user_id: cfg.userId,
+      // Create a new live chat session (user_id is set server-side from the
+      // caller's own session — never trust a client-supplied user_id).
+      const created = await gatewayInsert('support_tickets', {
         category: 'live_chat',
         subject: 'Live chat — ' + (cfg.userName || cfg.userEmail || 'User'),
         message: '__chat_init__',
@@ -292,7 +292,8 @@
     }
 
     renderMessages(msgs);
-    subscribeRealtime();
+    // No realtime backend — the poll below (every 5s while the panel is
+    // open) is the sole delivery mechanism for incoming replies.
   }
 
   function buildMsgs(ticket) {
@@ -362,52 +363,27 @@
     msgs.push({ side: 'user', text, time: new Date().toISOString() });
     renderMessages(msgs);
 
-    // Append to ticket message field via RPC-less approach:
-    // Re-fetch current message, append, update
-    const current = await sbFetch('GET',
-      `/rest/v1/support_tickets?id=eq.${ticketId}&select=message,status`);
+    // Append to ticket message field: re-fetch current message, append, update.
+    const current = await gatewaySelect('support_tickets',
+      [{ col: 'id', op: 'eq', value: ticketId }]);
     const prev = current && current[0] ? current[0].message || '' : '';
     const updated = prev + '\n---\n[user] ' + text + ' [' + new Date().toISOString() + ']';
-    await sbFetch('PATCH',
-      `/rest/v1/support_tickets?id=eq.${ticketId}`, {
-        message: updated,
-        status: 'open',
-        updated_at: new Date().toISOString()
-      });
+    await gatewayUpdate('support_tickets',
+      { message: updated, status: 'open' },
+      [{ col: 'id', op: 'eq', value: ticketId }]);
 
     sendBtn.disabled = false;
   }
 
-  // ── Realtime subscription ─────────────────────────────────────────────────
-  function subscribeRealtime() {
-    if (!window.supabase || !ticketId) return;
-    const sb = window.supabase.createClient(SUPA_URL, SUPA_KEY,
-      { global: { headers: { Authorization: 'Bearer ' + (userToken() || SUPA_KEY) } } });
-    realtimeSub = sb
-      .channel('mv-chat-' + ticketId)
-      .on('postgres_changes', {
-        event: 'UPDATE',
-        schema: 'public',
-        table: 'support_tickets',
-        filter: 'id=eq.' + ticketId
-      }, payload => {
-        const t = payload.new;
-        msgs = buildMsgs(t);
-        renderMessages(msgs);
-        if (!open) {
-          const dot = document.getElementById('mv-unread-dot');
-          dot.style.display = 'flex';
-          dot.textContent = '!';
-        }
-      })
-      .subscribe();
-  }
-
-  // ── Poll fallback (if Realtime not available) ─────────────────────────────
+  // ── Poll for admin replies every 5s while the panel is open ────────────────
+  // (This app has no realtime/websocket backend; polling is the only
+  // delivery mechanism, not a fallback for one. Trade-off: unlike the old
+  // realtime subscription, there's no "!" badge for a reply that arrives
+  // while the panel is closed — reopening the panel still shows it, via
+  // initChat()'s full reload, just without the proactive nudge.)
   setInterval(async () => {
     if (!open || !ticketId) return;
-    const data = await sbFetch('GET',
-      `/rest/v1/support_tickets?id=eq.${ticketId}&select=message,admin_reply,status,updated_at`);
+    const data = await gatewaySelect('support_tickets', [{ col: 'id', op: 'eq', value: ticketId }]);
     if (data && data[0]) {
       const newMsgs = buildMsgs(data[0]);
       if (newMsgs.length !== msgs.length) {

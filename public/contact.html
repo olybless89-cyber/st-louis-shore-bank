@@ -505,8 +505,6 @@ function googleTranslateElementInit() {
   // PHP app; the create_contact_message RPC (migration 009) is SECURITY
   // DEFINER so guests (no session) can submit through RLS.
   (function () {
-    var SUPA_URL = 'https://YOUR-PROJECT-REF.supabase.co';
-    var SUPA_KEY = 'YOUR_SUPABASE_ANON_KEY';
     var form = document.getElementById('mv-contact-form');
     if (!form) return;
     form.addEventListener('submit', async function (e) {
@@ -525,9 +523,9 @@ function googleTranslateElementInit() {
       if (!document.getElementById('gridCheck').checked) { say(false, 'Please agree to the Terms & Privacy Policy.'); return; }
       btn.disabled = true;
       try {
-        var r = await fetch(SUPA_URL + '/rest/v1/rpc/create_contact_message', {
+        var r = await fetch('/api/rpc/create_contact_message', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + SUPA_KEY },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ p_name: name, p_email: email, p_phone: phone, p_message: message })
         });
         if (!r.ok) {

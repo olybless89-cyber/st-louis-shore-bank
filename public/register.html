@@ -83,8 +83,8 @@
       <input type="email" id="email" name="email" placeholder="you@example.com" autocomplete="email" required>
 
       <label for="password">Password</label>
-      <input type="password" id="password" name="password" placeholder="Min. 6 characters" required>
-      <p class="pw-hint">At least 6 characters</p>
+      <input type="password" id="password" name="password" placeholder="Min. 8 characters" required>
+      <p class="pw-hint">At least 8 characters</p>
 
       <label for="confirm_pw">Confirm password</label>
       <input type="password" id="confirm_pw" name="confirm_pw" placeholder="Re-enter password" required>
@@ -101,7 +101,7 @@
 
 <footer>&copy; 2025 St Louis Shore Bank. All rights reserved.</footer>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="/vendor/supabase.js"></script>
 <script>
 var SUPA_URL = "https://YOUR-PROJECT-REF.supabase.co";
 var SUPA_KEY = "YOUR_SUPABASE_ANON_KEY";
@@ -135,7 +135,7 @@ function doRegister(e) {
   errMsg.style.display = "none";
   if (!first || !last)  { showErr("Please enter your full name."); return; }
   if (!email)           { showErr("Email is required."); return; }
-  if (pw.length < 6)    { showErr("Password must be at least 6 characters."); return; }
+  if (pw.length < 8)    { showErr("Password must be at least 8 characters."); return; }
   if (pw !== pw2)       { showErr("Passwords do not match."); return; }
 
   btn.disabled = true; btn.textContent = "Creating...";
@@ -143,28 +143,19 @@ function doRegister(e) {
 
   var fullName = first + " " + last;
 
-  // Use Edge Function to create user (bypasses Supabase email rate limit)
-  fetch("https://YOUR-PROJECT-REF.supabase.co/functions/v1/register", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "Authorization": "Bearer YOUR_SUPABASE_ANON_KEY", "apikey": "YOUR_SUPABASE_ANON_KEY" },
-    body: JSON.stringify({ email: email, password: pw, full_name: fullName })
-  })
-  .then(function(r) { return r.json().then(function(d) { return {ok: r.ok, data: d}; }); })
-  .then(function(res) {
-    if (!res.ok || res.data.error) {
-      var msg = res.data.error || "Registration failed. Please try again.";
-      showErr(msg); resetBtn(); return;
-    }
-    var d = res.data;
-    // Set session in Supabase client
-    if (d.access_token) {
-      sb.auth.setSession({ access_token: d.access_token, refresh_token: d.refresh_token })
-        .then(function() { sendWelcomeMail(d.user.id, fullName, email); });
-    } else {
-      finishRegister();
-    }
-  })
-  .catch(function() { showErr("Network error. Please try again."); resetBtn(); });
+  // Previously went through a separate Edge Function (a workaround for a
+  // Supabase email-confirmation rate limit that no longer applies here) —
+  // now a plain signUp, same as every other Supabase-shaped auth call.
+  sb.auth.signUp({ email: email, password: pw, options: { data: { full_name: fullName } } })
+    .then(function(res) {
+      if (res.error) {
+        showErr(res.error.message || "Registration failed. Please try again.");
+        resetBtn();
+        return;
+      }
+      sendWelcomeMail(res.data.user.id, fullName, email);
+    })
+    .catch(function() { showErr("Network error. Please try again."); resetBtn(); });
 }
 
 function resetBtn() {
