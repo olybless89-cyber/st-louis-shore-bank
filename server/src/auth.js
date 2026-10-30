@@ -3,10 +3,14 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { pool } from './db.js';
 
-const JWT_SECRET = process.env.JWT_SECRET;
-if (!JWT_SECRET) {
-  console.error('JWT_SECRET is not set.');
-  process.exit(1);
+
+// Never crash on a missing secret. Fallback is derived from DATABASE_URL so
+// logins survive restarts; set JWT_SECRET yourself for production.
+const JWT_SECRET =
+  process.env.JWT_SECRET ||
+  crypto.createHash('sha256').update('stlsb:' + (process.env.DATABASE_URL || crypto.randomBytes(32).toString('hex'))).digest('hex');
+if (!process.env.JWT_SECRET) {
+  console.error('⚠️  JWT_SECRET is not set — using a derived fallback. Set JWT_SECRET (openssl rand -base64 48).');
 }
 
 export function signToken(userId) {

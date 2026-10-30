@@ -1,63 +1,52 @@
 # St Louis Shore Bank
 
-A static HTML/JS digital banking application backed by **Supabase**
-(Postgres + Auth + PostgREST). No PHP, no Laravel, no build step — every
-page talks to Supabase directly from the browser.
+Static multi-page site + Express API in **one Node service**, backed by plain Postgres.
+No Supabase. Not tied to any host — runs anywhere Docker or Node 18+ runs.
 
-**New to this repo? Start with [SETUP.md](./SETUP.md)** — it walks through
-the one manual step (creating your Supabase project) and how to make pushes
-to `main` auto-deploy the site and auto-run the database migrations.
+## Deploy (Railway — any account)
 
-## What's included
+1. **New Project → Deploy from GitHub repo** → this repo. It builds from the `Dockerfile`.
+2. In the same project: **New → Database → PostgreSQL**.
+3. On the app service → **Variables**:
+   ```
+   DATABASE_URL=${{Postgres.DATABASE_URL}}
+   JWT_SECRET=<output of: openssl rand -base64 48>
+   ```
+4. **Settings → Networking → Generate Domain** (port 8080).
 
-- **Public site** — home, about, business, personal, cards, loans, apps,
-  contact, FAQ, privacy policy, terms of service.
-- **Auth** — register/login/logout via Supabase Auth, session persistence,
-  forgot/reset password, role-based routing (user vs admin).
-- **Customer dashboard** — balance, account number, KYC, deposits,
-  transfers, loan applications, virtual card (view status/expiry), webmail,
-  notifications, live chat widget.
-- **Admin dashboard** — user management (edit/delete), transaction
-  management (edit with automatic balance sync), deposit/transfer/loan
-  approvals, KYC review, card management (issue/freeze/block/edit/
-  regenerate, including PIN), COT/RELEASE/TAX wire codes, support tickets,
-  live chat, stats.
+That's it. On boot the app creates every table itself (`server/schema.sql`, idempotent).
+No manual SQL / psql step is needed.
 
-## Tech stack
+Check: `https://<your-domain>/health` → `{"ok":true,"db":"ready"}`
 
-- **Frontend** — static HTML5, inline CSS/JS, no build step.
-- **Backend** — Supabase (Postgres + Auth + PostgREST + Edge Functions).
-- **Database** — PostgreSQL schema in `SQL/supabase/*.sql`: tables, RLS
-  policies, a signup trigger, and `SECURITY DEFINER` admin RPCs. Every
-  migration is idempotent (`create table if not exists`,
-  `create or replace function`, `insert ... on conflict do nothing`), so
-  re-running them against a database that already has some of them applied
-  is always safe.
-- **Server** — `serve.js` (Node, zero dependencies). Serves `public/` with
-  clean-URL routing and rewrites the Supabase URL/anon key embedded in the
-  HTML to whatever project you point it at via environment variables — see
-  SETUP.md.
-- **CI/CD** — `.github/workflows/deploy.yml` runs every SQL migration
-  against your Supabase project on every push to `main`, using the Supabase
-  Management API (access token + project ref only, no DB password needed).
-  Railway (or any Nixpacks-compatible host) auto-builds and redeploys the
-  app itself on every push to the connected GitHub repo.
+- `db: "not_configured"` → `DATABASE_URL` isn't set
+- `db: "connecting"` → URL set but Postgres unreachable (wrong URL / DB down) — see deploy logs
 
-## Running locally
+The site always boots and passes the healthcheck, even with no database, so a deploy never fails because of DB setup.
 
-Requires Node 18+.
+## Deploy anywhere else
 
 ```bash
-git clone https://github.com/YOUR_GITHUB_USERNAME/st-louis-shore-bank.git
-cd st-louis-shore-bank
-PORT=12000 SUPABASE_API_URL=https://YOUR-PROJECT-REF.supabase.co SUPABASE_ANON_KEY=YOUR_ANON_KEY node serve.js
+docker build -t stlsb .
+docker run -p 8080:8080 -e DATABASE_URL=postgresql://... -e JWT_SECRET=... stlsb
 ```
+Or without Docker: `npm ci && DATABASE_URL=... JWT_SECRET=... npm start`
 
-Open http://localhost:12000. Without the two environment variables the
-server still starts, but auth/data calls fail (by design — see SETUP.md).
+## Variables
 
-## Deploying
+| Name | Required | Notes |
+|---|---|---|
+| `DATABASE_URL` | yes | Any Postgres. Add `?sslmode=require` for hosts that need SSL (Neon, etc.) |
+| `JWT_SECRET` | recommended | Falls back to a value derived from `DATABASE_URL` |
+| `DATABASE_ADMIN_URL` | no | Only when sharing one Postgres server: app creates its own DB from `DATABASE_URL`'s name |
+| `APP_URL` | no | Base for password-reset links (logged server-side; no email provider yet) |
+| `AUTO_MIGRATE` | no | `false` to skip auto schema on boot |
+| `PORT` | no | Set by host; default 8080 |
 
-See [SETUP.md](./SETUP.md) for the full one-time setup, and the repo root's
-`deploy.sh` (delivered alongside this bundle) for the one-command bootstrap
-that creates the GitHub repo, pushes this code, and wires up Railway.
+## Admin account
+
+Register normally at `/register`, then promote it:
+```sql
+UPDATE profiles SET role='admin' WHERE email='you@example.com';
+```
+Sign in at `/admin`.

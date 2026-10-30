@@ -5,19 +5,33 @@ import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-const connectionString = process.env.DATABASE_URL;
-if (!connectionString) {
-  console.error('DATABASE_URL is not set. Attach a Railway Postgres service and reference it as DATABASE_URL.');
-  process.exit(1);
+// Any Postgres works (Railway, Neon, Render, VPS, local). We never exit when
+// it's missing — the site still boots and /health stays green, so the host's
+// healthcheck passes and the deploy goes live; API calls report the problem.
+const connectionString =
+  process.env.DATABASE_URL ||
+  process.env.DATABASE_PRIVATE_URL ||
+  process.env.POSTGRES_URL ||
+  process.env.DATABASE_PUBLIC_URL ||
+  '';
+
+export const dbConfigured = Boolean(connectionString);
+
+if (!dbConfigured) {
+  console.error('⚠️  DATABASE_URL is not set — site will load, but login/signup/API will fail until you set it.');
 }
 
 const useSsl = /sslmode=require/.test(connectionString) || process.env.PGSSL === 'true';
 
 export const pool = new pg.Pool({
-  connectionString,
+  connectionString: connectionString || undefined,
   ssl: useSsl ? { rejectUnauthorized: false } : undefined,
   max: 10,
+  connectionTimeoutMillis: 10000,
 });
+
+// An idle client dying (DB restart, proxy drop) must not crash the app.
+pool.on('error', (err) => console.error('Postgres pool error:', err.message));
 
 export async function query(text, params) {
   return pool.query(text, params);
@@ -39,6 +53,7 @@ export async function withTransaction(fn) {
 }
 
 export async function runSchema() {
+  if (!dbConfigured) return;
   const sql = fs.readFileSync(path.join(__dirname, '..', 'schema.sql'), 'utf8');
   await pool.query(sql);
   console.log('Schema applied.');
@@ -58,7 +73,7 @@ export async function runSchema() {
 // original behavior (a dedicated Postgres service per app).
 export async function ensureDatabase() {
   const adminUrl = process.env.DATABASE_ADMIN_URL;
-  if (!adminUrl) return;
+  if (!adminUrl || !dbConfigured) return;
 
   let dbName;
   try {
@@ -71,6 +86,7 @@ export async function ensureDatabase() {
   const admin = new pg.Client({
     connectionString: adminUrl,
     ssl: /sslmode=require/.test(adminUrl) ? { rejectUnauthorized: false } : undefined,
+    connectionTimeoutMillis: 10000,
   });
   await admin.connect();
   try {

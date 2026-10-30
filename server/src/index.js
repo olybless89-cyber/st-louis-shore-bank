@@ -3,7 +3,9 @@ import cors from 'cors';
 import path from 'node:path';
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { pool, runSchema, ensureDatabase } from './db.js';
+import { pool, runSchema, ensureDatabase, dbConfigured } from './db.js';
+
+let dbReady = false;
 import {
   signToken, hashPassword, verifyPassword, attachAuth, requireAuth, httpError,
   provisionNewUser, createPasswordReset, consumePasswordReset, logResetLink,
@@ -29,7 +31,8 @@ function asyncRoute(fn) {
   return (req, res, next) => fn(req, res, next).catch(next);
 }
 
-app.get('/health', (_req, res) => res.json({ ok: true }));
+// Always 200 so deploys go live; "db" tells you whether Postgres is wired up.
+app.get('/health', (_req, res) => res.json({ ok: true, db: dbConfigured ? (dbReady ? 'ready' : 'connecting') : 'not_configured' }));
 
 // ── Auth ─────────────────────────────────────────────────────────────────
 
@@ -200,14 +203,29 @@ app.get('*', (req, res) => {
 
 const PORT = process.env.PORT || 8080;
 
-async function start() {
-  await ensureDatabase().catch((err) => {
-    console.error('ensureDatabase failed (continuing — assuming the target database already exists):', err.message);
-  });
-  if (process.env.AUTO_MIGRATE !== 'false') {
-    await runSchema().catch((err) => console.error('Schema migration failed:', err.message));
+// Open the port FIRST so the host's healthcheck passes immediately, then set
+// up the database in the background (retrying while Postgres boots).
+async function setupDatabase() {
+  if (!dbConfigured) return;
+  for (let attempt = 1; attempt <= 10; attempt++) {
+    try {
+      await ensureDatabase().catch((err) => {
+        console.error('ensureDatabase failed (assuming the database already exists):', err.message);
+      });
+      if (process.env.AUTO_MIGRATE !== 'false') await runSchema();
+      else await pool.query('select 1');
+      dbReady = true;
+      console.log('Database ready.');
+      return;
+    } catch (err) {
+      console.error(`Database setup attempt ${attempt}/10 failed: ${err.message}`);
+      await new Promise((r) => setTimeout(r, Math.min(3000 * attempt, 15000)));
+    }
   }
-  app.listen(PORT, () => console.log(`St Louis Shore Bank API+site listening on :${PORT}`));
+  console.error('Database still unreachable — check DATABASE_URL. Site stays up; API calls will fail.');
 }
 
-start();
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`St Louis Shore Bank API+site listening on :${PORT}`);
+  setupDatabase();
+});
