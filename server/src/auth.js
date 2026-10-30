@@ -168,7 +168,7 @@ export async function sendResetLink(email, token, appUrl, name) {
 // password — so the admin can change their password later without a deploy
 // resetting it. Set ADMIN_RESET_PASSWORD=true once to force-reset it.
 export async function ensureAdminFromEnv() {
-  const email = process.env.ADMIN_EMAIL;
+  const email = (process.env.ADMIN_EMAIL || '').trim().toLowerCase();
   const password = process.env.ADMIN_PASSWORD;
   if (!email || !password) return;
   const client = await pool.connect();

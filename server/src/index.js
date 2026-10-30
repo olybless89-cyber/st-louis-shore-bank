@@ -38,7 +38,8 @@ app.get('/health', (_req, res) => res.json({ ok: true, db: dbConfigured ? (dbRea
 // ── Auth ─────────────────────────────────────────────────────────────────
 
 app.post('/api/auth/signup', asyncRoute(async (req, res) => {
-  const { email, password, options } = req.body || {};
+  const { password, options } = req.body || {};
+  const email = (req.body?.email || '').trim().toLowerCase();
   if (!email || !password) throw httpError(400, 'email and password are required');
   if (password.length < 8) throw httpError(400, 'Password must be at least 8 characters');
   const fullName = options?.data?.full_name || '';
@@ -75,7 +76,7 @@ app.post('/api/auth/signin', asyncRoute(async (req, res) => {
   const { rows } = await pool.query(
     `SELECT u.id, u.password_hash, p.status
        FROM users u LEFT JOIN profiles p ON p.id = u.id
-      WHERE u.email = $1`, [email]);
+      WHERE LOWER(u.email) = LOWER($1)`, [email]);
   const user = rows[0];
   if (!user || !(await verifyPassword(password, user.password_hash))) {
     throw httpError(400, 'Invalid login credentials');
@@ -103,7 +104,7 @@ app.post('/api/auth/forgot-password', asyncRoute(async (req, res) => {
   // Always the same response, whether or not the address is registered —
   // matches the original resetPasswordForEmail() behavior.
   if (email) {
-    const { rows } = await pool.query('SELECT u.id, p.full_name FROM users u LEFT JOIN profiles p ON p.id = u.id WHERE u.email=$1', [email]);
+    const { rows } = await pool.query('SELECT u.id, p.full_name FROM users u LEFT JOIN profiles p ON p.id = u.id WHERE LOWER(u.email)=LOWER($1)', [email]);
     if (rows[0]) {
       const token = await createPasswordReset(rows[0].id);
       const appUrl = process.env.APP_URL || `${req.protocol}://${req.get('host')}`;
@@ -148,7 +149,7 @@ app.post('/api/auth/send-otp', asyncRoute(async (req, res) => {
   const { email, purpose } = req.body || {};
   if (!email) throw httpError(400, 'email is required');
   const p = ['verify', 'login', 'reset'].includes(purpose) ? purpose : 'verify';
-  const { rows } = await pool.query('SELECT u.id, p.full_name FROM users u LEFT JOIN profiles p ON p.id = u.id WHERE u.email = $1', [email]);
+  const { rows } = await pool.query('SELECT u.id, p.full_name FROM users u LEFT JOIN profiles p ON p.id = u.id WHERE LOWER(u.email) = LOWER($1)', [email]);
   const user = rows[0];
   // For "verify" we send even to brand-new signups; for login/reset only if the user exists.
   if (user || p === 'verify') {
