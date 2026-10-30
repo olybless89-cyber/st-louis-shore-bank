@@ -140,8 +140,23 @@ export async function consumePasswordReset(token) {
   return row.user_id;
 }
 
-export function logResetLink(email, token, appUrl) {
+export async function sendResetLink(email, token, appUrl, name) {
   const link = `${appUrl.replace(/\/$/, '')}/reset-password?token=${token}`;
-  console.log(`[password reset] ${email} -> ${link}`);
+  const { sendMail, BRAND } = await import('./mailer.js');
+  await sendMail({
+    to: email,
+    subject: `${BRAND} — reset your password`,
+    text: `Hello ${name || 'there'}\n\nUse this link to reset your password (valid for 1 hour):\n${link}\n\nIf you didn't request this, you can ignore this email.\n\n${BRAND}`,
+    html: `<!doctype html><html><body style="margin:0;background:#f1f1f1;font-family:Arial,sans-serif;">
+      <table width="100%" cellpadding="0" cellspacing="0" style="background:#f1f1f1;padding:24px 0;"><tr><td align="center">
+        <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#fff;border-radius:8px;overflow:hidden;">
+          <tr><td style="background:#0b2e13;padding:20px 32px;color:#fff;font-size:18px;font-weight:bold;">${BRAND}</td></tr>
+          <tr><td style="padding:20px 32px 0;color:#111;font-size:22px;font-weight:bold;">Hello ${(name || 'there').replace(/[<>&]/g,'')}</td></tr>
+          <tr><td style="padding:14px 32px 0;color:#222;font-size:15px;line-height:1.5;">You asked to reset your password. Click the button below — this link is valid for 1 hour.</td></tr>
+          <tr><td style="padding:24px 32px;"><a href="${link}" style="background:#0b2e13;color:#fff;text-decoration:none;padding:12px 24px;border-radius:6px;font-size:15px;display:inline-block;">Reset password</a></td></tr>
+          <tr><td style="padding:0 32px 28px;color:#888;font-size:13px;">If you didn't request this, you can safely ignore this email.</td></tr>
+        </table></td></tr></table></body></html>`,
+  });
+  console.log(`[password reset] link issued to ${email}`);
   return link;
 }

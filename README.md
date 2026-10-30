@@ -50,3 +50,30 @@ Register normally at `/register`, then promote it:
 UPDATE profiles SET role='admin' WHERE email='you@example.com';
 ```
 Sign in at `/admin`.
+
+## Email notifications (OTP + password reset)
+
+The app emails a branded 6-digit OTP on signup and on request, and emails the
+password-reset link. It uses plain SMTP, so any provider works.
+
+Set these variables on the service to send real email (until they're set,
+emails are printed to the deploy logs so you can still test):
+
+```
+SMTP_HOST=smtp.yourprovider.com
+SMTP_PORT=587                         # 465 for SSL, 587 for STARTTLS
+SMTP_USER=no-reply@yourdomain.com
+SMTP_PASS=<smtp password / app password / API key>
+MAIL_FROM=St Louis Shore Bank <no-reply@yourdomain.com>
+MAIL_BRAND=St Louis Shore Bank
+SUPPORT_EMAIL=support@yourdomain.com
+SUPPORT_PHONE=+1 453 598 4512         # optional, shown in the footer
+```
+
+Endpoints:
+- `POST /api/auth/send-otp` `{ email, purpose }` — purpose: `verify` | `login` | `reset`
+- `POST /api/auth/verify-otp` `{ email, code, purpose }` — returns a session token for `login`
+- OTP is sent automatically on `POST /api/auth/signup`
+
+Codes are 6 digits, hashed in the `otp_codes` table, expire in 10 minutes, and
+lock after 5 wrong attempts.

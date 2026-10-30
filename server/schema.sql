@@ -154,3 +154,17 @@ create table if not exists password_resets (
   used        boolean not null default false,
   created_at  timestamptz not null default now()
 );
+
+-- ── otp_codes (email one-time verification codes) ─────────────────────────
+create table if not exists otp_codes (
+  id          uuid primary key default gen_random_uuid(),
+  email       text not null,
+  user_id     uuid references users(id) on delete cascade,
+  purpose     text not null default 'verify',
+  code_hash   text not null,
+  expires_at  timestamptz not null,
+  used        boolean not null default false,
+  attempts    int not null default 0,
+  created_at  timestamptz not null default now()
+);
+create index if not exists otp_codes_email_idx on otp_codes (email, purpose, used);

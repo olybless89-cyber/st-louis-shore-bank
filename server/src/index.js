@@ -8,10 +8,11 @@ import { pool, runSchema, ensureDatabase, dbConfigured } from './db.js';
 let dbReady = false;
 import {
   signToken, hashPassword, verifyPassword, attachAuth, requireAuth, httpError,
-  provisionNewUser, createPasswordReset, consumePasswordReset, logResetLink,
+  provisionNewUser, createPasswordReset, consumePasswordReset, sendResetLink,
 } from './auth.js';
 import { runSelect, runInsert, runUpdate, runUpsert } from './gateway.js';
 import { RPCS, ANON_ALLOWED } from './rpc.js';
+import { issueOtp, verifyOtp } from './otp.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC_DIR = path.join(__dirname, '..', '..', 'public');
@@ -56,6 +57,8 @@ app.post('/api/auth/signup', asyncRoute(async (req, res) => {
     }
     await provisionNewUser(client, userId, email, fullName);
     await client.query('COMMIT');
+    // Fire a verification OTP email (best-effort — never blocks signup).
+    issueOtp({ email, purpose: 'verify', name: fullName, userId }).catch((e) => console.error('signup OTP failed:', e.message));
     const token = signToken(userId);
     res.json({ data: { user: { id: userId, email }, session: { access_token: token, user: { id: userId, email } } }, error: null });
   } catch (err) {
@@ -91,14 +94,13 @@ app.post('/api/auth/forgot-password', asyncRoute(async (req, res) => {
   // Always the same response, whether or not the address is registered —
   // matches the original resetPasswordForEmail() behavior.
   if (email) {
-    const { rows } = await pool.query('SELECT id FROM users WHERE email=$1', [email]);
+    const { rows } = await pool.query('SELECT u.id, p.full_name FROM users u LEFT JOIN profiles p ON p.id = u.id WHERE u.email=$1', [email]);
     if (rows[0]) {
       const token = await createPasswordReset(rows[0].id);
       const appUrl = process.env.APP_URL || `${req.protocol}://${req.get('host')}`;
-      logResetLink(email, token, appUrl);
-      // No email provider is wired up yet — see README-RAILWAY-MIGRATION.md.
-      // The link above is logged server-side so this flow is fully testable
-      // today; plug in Resend/SES/Postmark here once you've picked one.
+      // Emails the link when SMTP is configured; otherwise it's logged (so the
+      // flow stays testable with no provider). See README for SMTP_* vars.
+      sendResetLink(email, token, appUrl, rows[0].full_name).catch((e) => console.error('reset email failed:', e.message));
     }
   }
   res.json({ data: {}, error: null });
@@ -126,6 +128,43 @@ app.post('/api/auth/reset-password', asyncRoute(async (req, res) => {
   const hash = await hashPassword(password);
   await pool.query('UPDATE users SET password_hash=$1 WHERE id=$2', [hash, userId]);
   res.json({ data: {}, error: null });
+}));
+
+// ── OTP email verification ────────────────────────────────────────────────
+
+// Send (or resend) an OTP to an email address. Always responds the same way
+// whether or not the address is registered, so it can't be used to probe who
+// has an account. `purpose`: "verify" (default), "login", or "reset".
+app.post('/api/auth/send-otp', asyncRoute(async (req, res) => {
+  const { email, purpose } = req.body || {};
+  if (!email) throw httpError(400, 'email is required');
+  const p = ['verify', 'login', 'reset'].includes(purpose) ? purpose : 'verify';
+  const { rows } = await pool.query('SELECT u.id, p.full_name FROM users u LEFT JOIN profiles p ON p.id = u.id WHERE u.email = $1', [email]);
+  const user = rows[0];
+  // For "verify" we send even to brand-new signups; for login/reset only if the user exists.
+  if (user || p === 'verify') {
+    await issueOtp({ email, purpose: p, name: user?.full_name, userId: user?.id || null })
+      .catch((e) => console.error('send-otp failed:', e.message));
+  }
+  res.json({ data: { sent: true }, error: null });
+}));
+
+// Verify a submitted OTP code.
+app.post('/api/auth/verify-otp', asyncRoute(async (req, res) => {
+  const { email, code, purpose } = req.body || {};
+  const p = ['verify', 'login', 'reset'].includes(purpose) ? purpose : 'verify';
+  const result = await verifyOtp({ email, code, purpose: p });
+  if (!result.ok) throw httpError(400, result.reason || 'Invalid code');
+  // Mark the profile verified on a successful "verify".
+  if (p === 'verify' && result.userId) {
+    await pool.query("UPDATE profiles SET kyc_status = CASE WHEN kyc_status='unverified' THEN 'email_verified' ELSE kyc_status END WHERE id = $1", [result.userId]).catch(() => {});
+  }
+  // Issue a session token when verifying by login OTP.
+  const payload = { data: { verified: true }, error: null };
+  if (p === 'login' && result.userId) {
+    payload.data.session = { access_token: signToken(result.userId), user: { id: result.userId, email } };
+  }
+  res.json(payload);
 }));
 
 // ── Generic data gateway (mirrors the supabase-js query builder) ──────────
