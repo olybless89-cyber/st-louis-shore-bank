@@ -8,7 +8,7 @@ import { pool, runSchema, ensureDatabase, dbConfigured } from './db.js';
 let dbReady = false;
 import {
   signToken, hashPassword, verifyPassword, attachAuth, requireAuth, httpError,
-  provisionNewUser, createPasswordReset, consumePasswordReset, sendResetLink,
+  provisionNewUser, createPasswordReset, consumePasswordReset, sendResetLink, ensureAdminFromEnv,
 } from './auth.js';
 import { runSelect, runInsert, runUpdate, runUpsert } from './gateway.js';
 import { RPCS, ANON_ALLOWED } from './rpc.js';
@@ -262,6 +262,7 @@ async function setupDatabase() {
       });
       if (process.env.AUTO_MIGRATE !== 'false') await runSchema();
       else await pool.query('select 1');
+      await ensureAdminFromEnv();
       dbReady = true;
       console.log('Database ready.');
       return;

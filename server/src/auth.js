@@ -160,3 +160,42 @@ export async function sendResetLink(email, token, appUrl, name) {
   console.log(`[password reset] link issued to ${email}`);
   return link;
 }
+
+// ── Admin bootstrap from environment ──────────────────────────────────────
+// If ADMIN_EMAIL and ADMIN_PASSWORD are set, ensure that admin exists on boot.
+// Idempotent: creates the account if missing (with a profile + role=admin); if
+// it already exists it only re-asserts role=admin and does NOT overwrite the
+// password — so the admin can change their password later without a deploy
+// resetting it. Set ADMIN_RESET_PASSWORD=true once to force-reset it.
+export async function ensureAdminFromEnv() {
+  const email = process.env.ADMIN_EMAIL;
+  const password = process.env.ADMIN_PASSWORD;
+  if (!email || !password) return;
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const { rows } = await client.query('SELECT id FROM users WHERE email = $1', [email]);
+    let userId;
+    if (rows[0]) {
+      userId = rows[0].id;
+      if (process.env.ADMIN_RESET_PASSWORD === 'true') {
+        await client.query('UPDATE users SET password_hash = $1 WHERE id = $2', [await hashPassword(password), userId]);
+        console.log(`Admin password reset for ${email}`);
+      }
+    } else {
+      const hash = await hashPassword(password);
+      const r = await client.query('INSERT INTO users (email, password_hash) VALUES ($1,$2) RETURNING id', [email, hash]);
+      userId = r.rows[0].id;
+      await provisionNewUser(client, userId, email, 'Administrator');
+      console.log(`Admin account created: ${email}`);
+    }
+    await client.query("UPDATE profiles SET role = 'admin', status = 'active', updated_at = now() WHERE id = $1", [userId]);
+    await client.query('COMMIT');
+    console.log(`Admin ensured: ${email}`);
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    console.error('ensureAdminFromEnv failed:', err.message);
+  } finally {
+    client.release();
+  }
+}
