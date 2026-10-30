@@ -72,10 +72,19 @@ app.post('/api/auth/signup', asyncRoute(async (req, res) => {
 app.post('/api/auth/signin', asyncRoute(async (req, res) => {
   const { email, password } = req.body || {};
   if (!email || !password) throw httpError(400, 'email and password are required');
-  const { rows } = await pool.query('SELECT id, password_hash FROM users WHERE email = $1', [email]);
+  const { rows } = await pool.query(
+    `SELECT u.id, u.password_hash, p.status
+       FROM users u LEFT JOIN profiles p ON p.id = u.id
+      WHERE u.email = $1`, [email]);
   const user = rows[0];
   if (!user || !(await verifyPassword(password, user.password_hash))) {
     throw httpError(400, 'Invalid login credentials');
+  }
+  if (user.status === 'frozen') {
+    throw httpError(403, 'Your account has been frozen. Please contact support.', 'ACCOUNT_FROZEN');
+  }
+  if (user.status === 'inactive') {
+    throw httpError(403, 'Your account is inactive. Please contact support.', 'ACCOUNT_INACTIVE');
   }
   const token = signToken(user.id);
   res.json({ data: { user: { id: user.id, email }, session: { access_token: token, user: { id: user.id, email } } }, error: null });

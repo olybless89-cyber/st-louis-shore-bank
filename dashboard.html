@@ -1104,7 +1104,6 @@ function openProfileModal(){
     <div style="background:#f8fafc;border:1.5px solid var(--border);border-radius:8px;padding:14px;font-size:13px">
       <div style="display:flex;justify-content:space-between;margin-bottom:6px"><span style="color:var(--muted)">Account Number</span><strong style="font-family:monospace;font-size:12px;word-break:break-all">${userProfile.account_number||'—'}</strong></div>
       <div style="display:flex;justify-content:space-between;margin-bottom:6px"><span style="color:var(--muted)">KYC Status</span><span class="badge badge-${userProfile.kyc_status||'unverified'}">${userProfile.kyc_status||'unverified'}</span></div>
-      <div style="display:flex;justify-content:space-between"><span style="color:var(--muted)">Member Since</span><strong>${new Date(userProfile.created_at).toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'})}</strong></div>
     </div>`;
 }
 

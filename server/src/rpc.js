@@ -36,7 +36,7 @@ async function admin_get_all_users(auth) {
 
 async function admin_set_user_status(auth, { target_id, new_status }) {
   requireAdmin(auth);
-  if (!['active', 'inactive'].includes(new_status)) throw httpError(400, 'Invalid status: use active or inactive', '22023');
+  if (!['active', 'inactive', 'frozen'].includes(new_status)) throw httpError(400, 'Invalid status: use active, inactive or frozen', '22023');
   if (target_id === auth.id) throw httpError(400, 'You cannot change your own status', '44000');
   const { rowCount } = await pool.query('UPDATE profiles SET status=$1, updated_at=now() WHERE id=$2', [new_status, target_id]);
   if (!rowCount) throw httpError(404, 'User not found', 'P0002');

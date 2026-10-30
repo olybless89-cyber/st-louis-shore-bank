@@ -109,10 +109,21 @@ export async function runSelect(table, auth, body) {
   return { data: rows, error: null };
 }
 
+// Tables a frozen account must not be able to write to (money movement).
+const FROZEN_BLOCKED_INSERT = new Set(['deposit_requests', 'transfer_requests', 'loan_applications']);
+
+async function assertNotFrozen(auth) {
+  const { rows } = await pool.query('SELECT status FROM profiles WHERE id = $1', [auth.id]);
+  const status = rows[0]?.status;
+  if (status === 'frozen') throw httpError(403, 'Your account is frozen. This action is not allowed — please contact support.', 'ACCOUNT_FROZEN');
+  if (status === 'inactive') throw httpError(403, 'Your account is inactive. This action is not allowed — please contact support.', 'ACCOUNT_INACTIVE');
+}
+
 export async function runInsert(table, auth, body) {
   const policy = POLICIES[table]?.insert;
   if (!policy) throw httpError(403, `Insert not allowed on: ${table}`);
   if (!auth) throw httpError(401, 'Not authenticated');
+  if (FROZEN_BLOCKED_INSERT.has(table)) await assertNotFrozen(auth);
 
   const own = POLICIES[table].ownColumn;
   const values = pickAllowed(body?.values, policy.allowedColumns);

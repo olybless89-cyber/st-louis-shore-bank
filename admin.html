@@ -86,6 +86,7 @@ body{font-family:'Inter',sans-serif;background:#0b1120;color:#e2e8f0;min-height:
 .badge{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700}
 .badge-active,.badge-approved,.badge-verified{background:#052e16;color:#4ade80}
 .badge-inactive,.badge-rejected{background:#2d0000;color:#f87171}
+.badge-frozen{background:#0c2a4d;color:#7dd3fc}
 .badge-pending{background:#1c1100;color:#fbbf24}
 .badge-admin{background:#1e1040;color:#a78bfa}
 .badge-user{background:#0a1f3a;color:#60a5fa}
@@ -783,6 +784,7 @@ body{font-family:'Inter',sans-serif;background:#0b1120;color:#e2e8f0;min-height:
 
       <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
         <button class="btn btn-ghost btn-sm" id="mu-toggle-btn" onclick="toggleUserStatus()">Toggle Status</button>
+        <button class="btn btn-ghost btn-sm" id="mu-freeze-btn" onclick="toggleFreeze()">❄️ Freeze Account</button>
         <select class="form-select" style="flex:1;font-size:12px;padding:6px 10px" id="mu-kyc-select" onchange="updateKyc()">
           <option value="">Update KYC Status...</option>
           <option value="unverified">Unverified</option>
@@ -1890,6 +1892,8 @@ function openUserModal(uid) {
   document.getElementById('mu-kyc').innerHTML = `<span class="badge badge-${u.kyc_status||'unverified'}">${u.kyc_status||'unverified'}</span>`;
   document.getElementById('mu-joined').textContent = new Date(u.created_at).toLocaleDateString('en-US',{year:'numeric',month:'short',day:'numeric'});
   document.getElementById('mu-toggle-btn').textContent = u.status === 'active' ? '🚫 Deactivate User' : '✅ Activate User';
+  const fb = document.getElementById('mu-freeze-btn');
+  if (fb) fb.textContent = u.status === 'frozen' ? '✅ Unfreeze Account' : '❄️ Freeze Account';
   document.getElementById('mu-kyc-select').value = '';
   document.getElementById('mu-err').style.display = 'none';
   openModal('modal-user');
@@ -1899,6 +1903,22 @@ function openUserModal(uid) {
 // DEFINER, bypasses RLS). The previous implementation wrote to `profiles`
 // directly from the client, which RLS silently blocked for any user other than
 // the admin themselves — so toggling status appeared to do nothing.
+// Freeze / unfreeze a user. Frozen accounts cannot sign in or move money
+// (enforced server-side); unfreezing returns them to active.
+async function toggleFreeze() {
+  const u = allUsers.find(x => x.id === selectedUserId);
+  if (!u) return;
+  const newStatus = u.status === 'frozen' ? 'active' : 'frozen';
+  const label = u.status === 'frozen' ? '✅ Unfreeze Account' : '❄️ Freeze Account';
+  setLoading('mu-freeze-btn', true, 'Updating...');
+  document.getElementById('mu-err').style.display = 'none';
+  const { error } = await sb.rpc('admin_set_user_status', { target_id: selectedUserId, new_status: newStatus });
+  setLoading('mu-freeze-btn', false, label);
+  if (error) { showAlert('mu-err', error.message || 'Could not update account status.'); return; }
+  closeModal('modal-user');
+  await loadUsers();
+}
+
 async function toggleUserStatus() {
   const u = allUsers.find(x => x.id === selectedUserId);
   if (!u) return;
