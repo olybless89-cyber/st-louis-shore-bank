@@ -27,31 +27,81 @@ export const SUPPORT_EMAIL = process.env.SUPPORT_EMAIL || 'support@stlouisshoreb
 export const SUPPORT_PHONE = process.env.SUPPORT_PHONE || '';
 export const WEBSITE = process.env.APP_URL || process.env.PUBLIC_URL || '';
 
-export const mailConfigured = Boolean(HOST && USER && PASS);
+// HTTP email APIs (port 443) — these work on Railway Hobby, where outbound
+// SMTP is disabled. If a key is set we prefer the API over SMTP.
+const BREVO_API_KEY = process.env.BREVO_API_KEY;
+const RESEND_API_KEY = process.env.RESEND_API_KEY;
+const httpProvider = BREVO_API_KEY ? 'brevo' : RESEND_API_KEY ? 'resend' : null;
+
+export const mailConfigured = Boolean(httpProvider || (HOST && USER && PASS));
+
+// Parse "Name <email>" into parts.
+function parseFrom(from) {
+  const m = /^\s*(.*?)\s*<([^>]+)>\s*$/.exec(from);
+  if (m) return { name: m[1] || BRAND, email: m[2] };
+  return { name: BRAND, email: from };
+}
 
 let transporter = null;
-if (mailConfigured) {
+if (!httpProvider && HOST && USER && PASS) {
   transporter = nodemailer.createTransport({
     host: HOST,
     port: PORT,
     secure: PORT === 465, // SSL on 465, STARTTLS on 587/others
     auth: { user: USER, pass: PASS },
   });
+} else if (httpProvider) {
+  console.log(`Email transport: ${httpProvider} HTTP API`);
 } else {
-  console.error('⚠️  SMTP is not configured — emails will be logged to the console, not sent. Set SMTP_HOST/SMTP_USER/SMTP_PASS to send for real.');
+  console.error('⚠️  No email transport configured — emails will be logged, not sent. Set BREVO_API_KEY (recommended on Railway Hobby) or SMTP_* (Pro plan).');
+}
+
+async function sendViaBrevo({ to, subject, html, text }) {
+  const sender = parseFrom(FROM);
+  const res = await fetch('https://api.brevo.com/v3/smtp/email', {
+    method: 'POST',
+    headers: { 'api-key': BREVO_API_KEY, 'content-type': 'application/json', accept: 'application/json' },
+    body: JSON.stringify({ sender, to: [{ email: to }], subject, htmlContent: html, textContent: text }),
+  });
+  if (!res.ok) {
+    const body = await res.text().catch(() => '');
+    throw new Error(`Brevo ${res.status}: ${body.slice(0, 300)}`);
+  }
+  const data = await res.json().catch(() => ({}));
+  return data.messageId || 'brevo-ok';
+}
+
+async function sendViaResend({ to, subject, html, text }) {
+  const res = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${RESEND_API_KEY}`, 'content-type': 'application/json' },
+    body: JSON.stringify({ from: FROM, to: [to], subject, html, text }),
+  });
+  if (!res.ok) {
+    const body = await res.text().catch(() => '');
+    throw new Error(`Resend ${res.status}: ${body.slice(0, 300)}`);
+  }
+  const data = await res.json().catch(() => ({}));
+  return data.id || 'resend-ok';
 }
 
 // Generic send. Never throws into the request path — a mail failure must not
 // break signup/login; it's logged and the caller carries on.
 export async function sendMail({ to, subject, html, text }) {
-  if (!transporter) {
-    console.log(`\n── EMAIL (not sent — SMTP unconfigured) ──\nTo: ${to}\nSubject: ${subject}\n${text || html}\n──────────────────────────────────────\n`);
+  if (!mailConfigured) {
+    console.log(`\n── EMAIL (not sent — no transport) ──\nTo: ${to}\nSubject: ${subject}\n${text || html}\n──────────────────────────────────────\n`);
     return { sent: false };
   }
   try {
-    const info = await transporter.sendMail({ from: FROM, to, subject, html, text });
-    console.log(`Email sent to ${to} (${info.messageId})`);
-    return { sent: true, messageId: info.messageId };
+    let id;
+    if (httpProvider === 'brevo') id = await sendViaBrevo({ to, subject, html, text });
+    else if (httpProvider === 'resend') id = await sendViaResend({ to, subject, html, text });
+    else {
+      const info = await transporter.sendMail({ from: FROM, to, subject, html, text });
+      id = info.messageId;
+    }
+    console.log(`Email sent to ${to} (${id})`);
+    return { sent: true, messageId: id };
   } catch (err) {
     console.error(`Email to ${to} failed: ${err.message}`);
     return { sent: false, error: err.message };
