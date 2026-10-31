@@ -1,5 +1,13 @@
 import { pool } from './db.js';
 import { httpError } from './auth.js';
+import { notifyTransaction } from './txEmail.js';
+
+// Customer-submitted requests that warrant a "pending" acknowledgement email.
+const PENDING_NOTIFY = {
+  deposit_requests: 'deposit',
+  transfer_requests: 'transfer',
+  loan_applications: 'loan',
+};
 
 // Mirrors the ownership rules the original Supabase RLS policies enforced —
 // every table here is strictly "your own rows only" from the client; any
@@ -134,6 +142,18 @@ export async function runInsert(table, auth, body) {
   const sql = `INSERT INTO ${table} (${cols.join(', ')}) VALUES (${placeholders.join(', ')}) RETURNING *`;
   try {
     const { rows } = await pool.query(sql, cols.map((c) => values[c]));
+    // Acknowledge a newly-submitted money request as "pending" (never implies
+    // the funds have moved — that email only goes out on admin approval).
+    const type = PENDING_NOTIFY[table];
+    if (type && rows[0]) {
+      const row = rows[0];
+      notifyTransaction({
+        user_id: auth.id, type, status: 'pending', amount: row.amount,
+        reference: (type === 'deposit' ? 'DEP-' : type === 'transfer' ? 'TRF-' : 'LOAN-') + row.id,
+        method: row.method, recipient_name: row.recipient_name, recipient_account: row.recipient_account,
+        recipient_bank: row.bank_name, description: row.reason || row.purpose,
+      });
+    }
     return { data: rows, error: null };
   } catch (err) {
     return { data: null, error: { message: err.message, code: err.code } };

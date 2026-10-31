@@ -168,3 +168,14 @@ create table if not exists otp_codes (
   created_at  timestamptz not null default now()
 );
 create index if not exists otp_codes_email_idx on otp_codes (email, purpose, used);
+
+-- ── tx_notifications (idempotency for transaction emails) ──────────────────
+-- One row per (transaction, status) notification actually sent, so repeated
+-- events / webhook retries never email the customer twice.
+create table if not exists tx_notifications (
+  id         uuid primary key default gen_random_uuid(),
+  dedup_key  text not null unique,
+  user_id    uuid references users(id) on delete cascade,
+  channel    text not null default 'email',
+  sent_at    timestamptz not null default now()
+);

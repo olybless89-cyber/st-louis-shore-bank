@@ -23,8 +23,9 @@ const PASS = process.env.SMTP_PASS;
 
 export const BRAND = process.env.MAIL_BRAND || 'St Louis Shore Bank';
 const FROM = process.env.MAIL_FROM || (USER ? `${BRAND} <${USER}>` : `${BRAND} <no-reply@localhost>`);
-const SUPPORT_EMAIL = process.env.SUPPORT_EMAIL || 'support@stlouisshorebank.com';
-const SUPPORT_PHONE = process.env.SUPPORT_PHONE || '';
+export const SUPPORT_EMAIL = process.env.SUPPORT_EMAIL || 'support@stlouisshorebank.com';
+export const SUPPORT_PHONE = process.env.SUPPORT_PHONE || '';
+export const WEBSITE = process.env.APP_URL || process.env.PUBLIC_URL || '';
 
 export const mailConfigured = Boolean(HOST && USER && PASS);
 

@@ -7,12 +7,14 @@ import { pool, runSchema, ensureDatabase, dbConfigured } from './db.js';
 
 let dbReady = false;
 import {
-  signToken, hashPassword, verifyPassword, attachAuth, requireAuth, httpError,
+  signToken, hashPassword, verifyPassword, attachAuth, requireAuth, requireAdmin, httpError,
   provisionNewUser, createPasswordReset, consumePasswordReset, sendResetLink, ensureAdminFromEnv,
 } from './auth.js';
 import { runSelect, runInsert, runUpdate, runUpsert } from './gateway.js';
 import { RPCS, ANON_ALLOWED } from './rpc.js';
 import { issueOtp, verifyOtp } from './otp.js';
+import { renderTransactionEmail } from './txEmail.js';
+import { sendMail } from './mailer.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC_DIR = path.join(__dirname, '..', '..', 'public');
@@ -175,6 +177,33 @@ app.post('/api/auth/verify-otp', asyncRoute(async (req, res) => {
     payload.data.session = { access_token: signToken(result.userId), user: { id: result.userId, email } };
   }
   res.json(payload);
+}));
+
+// ── Admin: preview transaction emails (no real transaction, no customer mail) ─
+// GET /api/admin/tx-email-preview?type=transfer&status=successful[&currency=USD][&send=me]
+// Renders the template with representative sample data. ?send=me emails the
+// preview to the logged-in admin only — never to a customer.
+const SAMPLE_TX = {
+  reference: 'TRF-SAMPLE-00123', amount: 2500, fee: 10, currency: 'USD',
+  method: 'Bank Transfer', recipient_name: 'Jane Doe', recipient_account: '0123456789',
+  recipient_bank: 'First National Bank', sender_name: 'Account Holder',
+  available_balance: 18250.75, description: 'Invoice settlement', created_at: new Date().toISOString(),
+};
+app.get('/api/admin/tx-email-preview', requireAuth, requireAdmin, asyncRoute(async (req, res) => {
+  const type = String(req.query.type || 'transfer');
+  const status = String(req.query.status || 'successful');
+  const currency = String(req.query.currency || SAMPLE_TX.currency);
+  const ctx = { ...SAMPLE_TX, type, status, currency, customer_name: 'Valued Customer',
+    reason: status === 'failed' ? 'Insufficient funds' : undefined };
+  const { subject, html, text } = renderTransactionEmail(ctx);
+  if (req.query.send === 'me') {
+    const { rows } = await pool.query('SELECT COALESCE(p.email,u.email) AS email FROM users u LEFT JOIN profiles p ON p.id=u.id WHERE u.id=$1', [req.auth.id]);
+    const to = rows[0]?.email;
+    if (!to) throw httpError(400, 'No email on file for this admin');
+    const r = await sendMail({ to, subject, html, text });
+    return res.json({ data: { sent: r.sent, to }, error: null });
+  }
+  res.type('html').send(html);
 }));
 
 // ── Generic data gateway (mirrors the supabase-js query builder) ──────────

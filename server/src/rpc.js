@@ -1,5 +1,6 @@
 import { pool } from './db.js';
 import { httpError } from './auth.js';
+import { notifyTransaction } from './txEmail.js';
 
 function requireAdmin(auth) {
   if (!auth) throw httpError(401, 'Not authenticated');
@@ -100,12 +101,14 @@ async function admin_delete_user(auth, { target_uid }) {
 async function admin_credit_user(auth, { target_id, amount, reason }) {
   requireAdmin(auth);
   if (!(amount > 0)) throw httpError(400, 'Amount must be positive', '22023');
-  const { rowCount } = await pool.query('UPDATE profiles SET balance = balance + $1, updated_at = now() WHERE id=$2', [amount, target_id]);
-  if (!rowCount) throw httpError(404, 'User not found', 'P0002');
+  const { rows: bal } = await pool.query('UPDATE profiles SET balance = balance + $1, updated_at = now() WHERE id=$2 RETURNING balance', [amount, target_id]);
+  if (!bal[0]) throw httpError(404, 'User not found', 'P0002');
+  const ref = genRef('ADM');
   await pool.query(
     `INSERT INTO transactions (user_id, type, amount, status, description, reference) VALUES ($1,'credit',$2,'completed',$3,$4)`,
-    [target_id, amount, reason || 'Admin credit', genRef('ADM')]
+    [target_id, amount, reason || 'Admin credit', ref]
   );
+  notifyTransaction({ user_id: target_id, type: 'credit', status: 'completed', amount, reference: ref, description: reason || 'Admin credit', available_balance: bal[0].balance });
   return null;
 }
 
@@ -200,12 +203,17 @@ async function admin_get_deposit(auth, { d_id }) {
 async function admin_review_deposit(auth, { deposit_id, new_status, note }) {
   return reviewRequest(auth, 'deposit_requests', 'id', deposit_id, new_status, note, 'credit')
     .then(async (r) => {
+      const { rows } = await pool.query('SELECT user_id, amount, method FROM deposit_requests WHERE id=$1', [deposit_id]);
+      const d = rows[0];
       if (new_status === 'approved') {
-        const { rows } = await pool.query('SELECT user_id, amount FROM deposit_requests WHERE id=$1', [deposit_id]);
+        const ref = 'DEP-' + deposit_id;
         await pool.query(
           `INSERT INTO transactions (user_id, type, amount, status, description, reference) VALUES ($1,'deposit',$2,'completed','Deposit approved',$3)`,
-          [rows[0].user_id, rows[0].amount, 'DEP-' + deposit_id]
+          [d.user_id, d.amount, ref]
         );
+        notifyTransaction({ user_id: d.user_id, type: 'deposit', status: 'completed', amount: d.amount, reference: ref, method: d.method, description: 'Deposit approved' });
+      } else {
+        notifyTransaction({ user_id: d.user_id, type: 'deposit', status: 'failed', amount: d.amount, reference: 'DEP-' + deposit_id, method: d.method, reason: note || 'Deposit was not approved' });
       }
       return r;
     });
@@ -222,12 +230,21 @@ async function admin_get_transfer(auth, { t_id }) {
 async function admin_review_transfer(auth, { transfer_id, new_status, note }) {
   return reviewRequest(auth, 'transfer_requests', 'id', transfer_id, new_status, note, 'debit')
     .then(async (r) => {
+      const { rows } = await pool.query('SELECT * FROM transfer_requests WHERE id=$1', [transfer_id]);
+      const t = rows[0];
+      const common = {
+        user_id: t.user_id, type: 'transfer', amount: t.amount,
+        recipient_name: t.recipient_name, recipient_account: t.recipient_account, recipient_bank: t.bank_name,
+      };
       if (new_status === 'approved') {
-        const { rows } = await pool.query('SELECT user_id, amount FROM transfer_requests WHERE id=$1', [transfer_id]);
+        const ref = 'TRF-' + transfer_id;
         await pool.query(
-          `INSERT INTO transactions (user_id, type, amount, status, description, reference) VALUES ($1,'transfer',$2,'completed','Transfer approved',$3)`,
-          [rows[0].user_id, rows[0].amount, 'TRF-' + transfer_id]
+          `INSERT INTO transactions (user_id, type, amount, status, description, reference, recipient) VALUES ($1,'transfer',$2,'completed','Transfer approved',$3,$4)`,
+          [t.user_id, t.amount, ref, t.recipient_name || null]
         );
+        notifyTransaction({ ...common, status: 'completed', reference: ref, description: t.reason || 'Transfer approved' });
+      } else {
+        notifyTransaction({ ...common, status: 'failed', reference: 'TRF-' + transfer_id, reason: note || 'Transfer was not approved' });
       }
       return r;
     });
@@ -244,12 +261,17 @@ async function admin_get_loan(auth, { l_id }) {
 async function admin_review_loan(auth, { loan_id, new_status, note }) {
   return reviewRequest(auth, 'loan_applications', 'id', loan_id, new_status, note, 'credit')
     .then(async (r) => {
+      const { rows } = await pool.query('SELECT user_id, amount FROM loan_applications WHERE id=$1', [loan_id]);
+      const l = rows[0];
       if (new_status === 'approved') {
-        const { rows } = await pool.query('SELECT user_id, amount FROM loan_applications WHERE id=$1', [loan_id]);
+        const ref = 'LOAN-' + loan_id;
         await pool.query(
           `INSERT INTO transactions (user_id, type, amount, status, description, reference) VALUES ($1,'loan',$2,'completed','Loan approved',$3)`,
-          [rows[0].user_id, rows[0].amount, 'LOAN-' + loan_id]
+          [l.user_id, l.amount, ref]
         );
+        notifyTransaction({ user_id: l.user_id, type: 'loan', status: 'completed', amount: l.amount, reference: ref, description: 'Loan disbursed' });
+      } else {
+        notifyTransaction({ user_id: l.user_id, type: 'loan', status: 'failed', amount: l.amount, reference: 'LOAN-' + loan_id, reason: note || 'Loan application was not approved' });
       }
       return r;
     });
