@@ -15,6 +15,7 @@ import { RPCS, ANON_ALLOWED } from './rpc.js';
 import { issueOtp, verifyOtp } from './otp.js';
 import { renderTransactionEmail } from './txEmail.js';
 import { sendMail } from './mailer.js';
+import { importFromSource } from './importData.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC_DIR = path.join(__dirname, '..', '..', 'public');
@@ -292,6 +293,7 @@ async function setupDatabase() {
       });
       if (process.env.AUTO_MIGRATE !== 'false') await runSchema();
       else await pool.query('select 1');
+      await importFromSource().catch((err) => console.error('Data import failed:', err.message));
       await ensureAdminFromEnv();
       dbReady = true;
       console.log('Database ready.');
