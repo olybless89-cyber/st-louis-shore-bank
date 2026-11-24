@@ -16,6 +16,7 @@ import { issueOtp, verifyOtp } from './otp.js';
 import { renderTransactionEmail } from './txEmail.js';
 import { sendMail } from './mailer.js';
 import { importFromSource } from './importData.js';
+import { runBackup, scheduleBackupSoon, startBackupLoop, restoreIfEmpty, backupStatus } from './backup.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC_DIR = path.join(__dirname, '..', '..', 'public');
@@ -24,6 +25,14 @@ const app = express();
 app.set('trust proxy', true);
 app.use(cors());
 app.use(express.json({ limit: '2mb' }));
+
+// Any successful write → back up to GitHub shortly after (debounced).
+app.use((req, res, next) => {
+  if (req.method !== 'GET' && req.path.startsWith('/api/')) {
+    res.on('finish', () => { if (res.statusCode < 400) scheduleBackupSoon(req.path); });
+  }
+  next();
+});
 
 async function profilesLookup(userId) {
   const res = await pool.query('SELECT id, role FROM profiles WHERE id = $1', [userId]);
@@ -207,6 +216,12 @@ app.get('/api/admin/tx-email-preview', requireAuth, requireAdmin, asyncRoute(asy
   res.type('html').send(html);
 }));
 
+// ── GitHub backup (admin) ────────────────────────────────────────────────
+app.get('/api/admin/backup-status', requireAuth, requireAdmin, (_req, res) => res.json({ data: backupStatus(), error: null }));
+app.post('/api/admin/backup-now', requireAuth, requireAdmin, asyncRoute(async (_req, res) => {
+  res.json({ data: await runBackup('manual', { force: true }), error: null });
+}));
+
 // ── Generic data gateway (mirrors the supabase-js query builder) ──────────
 
 app.post('/api/data/:table/select', asyncRoute(async (req, res) => {
@@ -294,8 +309,10 @@ async function setupDatabase() {
       if (process.env.AUTO_MIGRATE !== 'false') await runSchema();
       else await pool.query('select 1');
       await importFromSource().catch((err) => console.error('Data import failed:', err.message));
+      await restoreIfEmpty().catch((err) => console.error('Restore from GitHub backup failed:', err.message));
       await ensureAdminFromEnv();
       dbReady = true;
+      startBackupLoop();
       console.log('Database ready.');
       return;
     } catch (err) {

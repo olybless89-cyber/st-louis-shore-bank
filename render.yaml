@@ -41,6 +41,13 @@ services:
         value: St Louis Shore Bank
       - key: SUPPORT_EMAIL
         value: support@stlouisshorebank.com
+      # Encrypted backups of all data to a PRIVATE GitHub repo (see README).
+      - key: BACKUP_GITHUB_REPO
+        sync: false
+      - key: BACKUP_GITHUB_TOKEN
+        sync: false
+      - key: BACKUP_ENCRYPTION_KEY
+        sync: false
       # One-time copy of the Railway data. Set to the Railway Postgres
       # DATABASE_PUBLIC_URL; remove it once the data is confirmed.
       - key: IMPORT_DATABASE_URL

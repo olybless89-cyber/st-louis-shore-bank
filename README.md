@@ -77,3 +77,31 @@ Endpoints:
 
 Codes are 6 digits, hashed in the `otp_codes` table, expire in 10 minutes, and
 lock after 5 wrong attempts.
+
+## Automatic GitHub backups (all user data)
+
+All data is backed up, encrypted, to a **private** GitHub repo. That covers users, profiles and balances, transactions, deposits, transfers, loans, tickets, cards and payment methods.
+
+- **When:** about 1 minute after any change, hourly, on startup, before shutdown, and a dated daily snapshot.
+- **Where:** `<BACKUP_PATH>/latest.enc` plus `<BACKUP_PATH>/daily/YYYY-MM-DD.enc`. Git history keeps every earlier version.
+- **Encryption:** AES-256-GCM using `BACKUP_ENCRYPTION_KEY`. Keep a copy of that key offline. Without it the backups can't be opened.
+- **Auto-restore:** if the app starts against an **empty** database (after a crash, a suspended account or a move to a new host), it restores `latest.enc` automatically before creating the admin. It never touches a database that already has users.
+- **Safety guard:** a server whose database has fewer users than the latest backup refuses to overwrite that backup.
+
+| Variable | Notes |
+|---|---|
+| `BACKUP_GITHUB_REPO` | `owner/repo` of a **private** repo. Never use this public code repo |
+| `BACKUP_GITHUB_TOKEN` | Fine-grained token with only that repo, permission **Contents: Read and write** |
+| `BACKUP_ENCRYPTION_KEY` | Long random secret. Keep it safe |
+| `BACKUP_PATH` | Optional folder, default `st-louis-shore-bank` |
+| `BACKUP_INTERVAL_MINUTES` | Optional, default 60 |
+| `RESTORE_FROM_BACKUP` | `false` turns off auto-restore |
+
+Admin API: `GET /api/admin/backup-status`, `POST /api/admin/backup-now`.
+
+**Recover on any new host:** deploy this repo with a new empty Postgres and the same three `BACKUP_*` variables. The data comes back on first boot.
+
+Read a backup offline:
+```bash
+BACKUP_ENCRYPTION_KEY=... node scripts/decrypt-backup.mjs latest.enc > backup.json
+```
