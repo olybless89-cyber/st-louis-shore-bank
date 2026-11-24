@@ -1,0 +1,47 @@
+# Render Blueprint — web service + its Postgres. Pushes to master auto-deploy.
+# The database lives on its own persistent disk; redeploying the web service
+# never touches it, and server/schema.sql only creates what's missing.
+databases:
+  - name: st-louis-shore-bank-db
+    databaseName: st_louis_shore_bank_db
+    user: st_louis_shore_bank_db_user
+    plan: basic-256mb
+    region: frankfurt
+    diskSizeGB: 1
+    postgresMajorVersion: "17"
+    ipAllowList: []
+
+services:
+  - type: web
+    name: st-louis-shore-bank
+    runtime: docker
+    repo: https://github.com/olybless89-cyber/st-louis-shore-bank
+    branch: master
+    dockerfilePath: ./Dockerfile
+    plan: starter
+    region: frankfurt
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: st-louis-shore-bank-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: AUTO_MIGRATE
+        value: "true"
+      - key: ADMIN_EMAIL
+        value: admin@stlouisshorebank.com
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: ADMIN_RESET_PASSWORD
+        value: "false"
+      - key: MAIL_BRAND
+        value: St Louis Shore Bank
+      - key: SUPPORT_EMAIL
+        value: support@stlouisshorebank.com
+      # One-time copy of the Railway data. Set to the Railway Postgres
+      # DATABASE_PUBLIC_URL; remove it once the data is confirmed.
+      - key: IMPORT_DATABASE_URL
+        sync: false
